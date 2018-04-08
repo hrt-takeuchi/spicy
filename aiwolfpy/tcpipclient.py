@@ -100,7 +100,8 @@ def connect(agent):
                     sock.send((json.dumps({'agentIdx':int(agent.divine())}, separators=(',', ':')) + '\n').encode('utf-8'))
                 elif request == 'TALK':
                     agent.update(game_info, talk_history, whisper_history, request)
-                    sock.send((agent.talk() + '\n').encode('utf-8'))
+                    # sock.send((agent.talk() + '\n').encode('utf-8'))
+                    sock.send(("aaaaaaaaaaaaaaaaaaaaaaaaa").encode('utf-8'))
                 elif request == 'WHISPER':
                     agent.update(game_info, talk_history, whisper_history, request)
                     sock.send((agent.whisper() + '\n').encode('utf-8'))
