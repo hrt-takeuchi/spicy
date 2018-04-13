@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function, division 
-
+import random
 # this is main script
 
 import aiwolfpy
@@ -10,6 +10,7 @@ import aiwolfpy.contentbuilder as cb
 import aiwolfpy.spicy
 
 import numpy as np
+from aiwolfpy import savelog
 
 myname = 'spicy'
 
@@ -31,6 +32,7 @@ class PythonPlayer(object):
         
     def initialize(self, base_info, diff_data, game_setting):
         # print(base_info)
+        # save_log("test", base_info)
         # print(diff_data)
         # base_info
         self.base_info = base_info
@@ -54,6 +56,7 @@ class PythonPlayer(object):
 
         
     def update(self, base_info, diff_data, request):
+        # print(base_info['statusMap'])
         # print(base_info)
         # print(diff_data)
         # update base_info
@@ -95,7 +98,7 @@ class PythonPlayer(object):
         self.whis_declare = 0
         return None
     
-    def talk(self):        
+    def talk(self):
         if self.game_setting['playerNum'] == 15:
             
             self.talk_turn += 1
@@ -106,11 +109,14 @@ class PythonPlayer(object):
                 return cb.comingout(self.base_info['agentIdx'], self.comingout)
             elif self.base_info['myRole'] == 'MEDIUM' and self.comingout == '':
                 self.comingout = 'MEDIUM'
+                new_file_content = str(self.base_info)
+             
+
                 return cb.comingout(self.base_info['agentIdx'], self.comingout)
             elif self.base_info['myRole'] == 'POSSESSED' and self.comingout == '':
                 self.comingout = 'SEER'
                 return cb.comingout(self.base_info['agentIdx'], self.comingout)
-            
+
             # 2.report
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
@@ -131,6 +137,17 @@ class PythonPlayer(object):
                         p = p0
                         idx = i
                 self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
+                return self.myresult
+            # 3日目に人狼は生存者リストからランダムに選んでTalk先を決める   
+            elif self.base_info['myRole'] == "WEREWOLF" and self.base_info['day'] == 3:
+                randlist = []
+                for i in range(1, 16):
+                    if self.base_info['statusMap'][str(i)] == 'ALIVE' :
+                        randlist.append(i)
+                rand_num=len(randlist)
+                rnd = int(random.uniform(1,rand_num))
+                print('hito ha:'+str(rnd))
+                self.myresult = 'DIVINED Agent[' + "{0:02d}".format(rnd) + '] ' + 'HUMAN'
                 return self.myresult
                 
             # 3.declare vote if not yet
