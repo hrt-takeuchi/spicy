@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 from __future__ import print_function, division 
 import random
+# 時間計測用
+import time
+
 # this is main script
 
 import aiwolfpy
@@ -96,6 +99,8 @@ class PythonPlayer(object):
         self.vote_declare = 0
         self.talk_turn = 0
         self.whis_declare = 0
+        day_num = str(self.base_info['day'])
+        print( day_num+"日目" )   
         return None
     
     def talk(self):
@@ -367,5 +372,9 @@ agent = PythonPlayer(myname)
 
 # run
 if __name__ == '__main__':
+    t1 = time.time()
     aiwolfpy.connect_parse(agent)
-    
+    t2 = time.time()
+    # 経過時間を表示
+    elapsed_time = t2-t1    
+    print(f"経過時間：{elapsed_time}")
