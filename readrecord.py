@@ -80,10 +80,11 @@ def read_record():
         text_content = str(key) + ':' + str(value[0]) + '/' + str(value[1]) + ':' + str('{:.3f}'.format(rate)) + '\r\n'
         print(key, ':', value[0], '/', value[1], ':', '{:.3f}'.format(rate))
         new_file_content.append(text_content)
-    print('win :', win)
-    print('total :', total)
+    print('num of win :', win)
+    print('num of games:', total)
     # 全体の勝率
-    total_content = 'Total :' + str('{:.3f}'.format(win / total))
+    total_content = 'winning rate :' + str('{:.3f}'.format(win / total))
+    print(total_content)
     new_file_content.append(total_content)
     # print('Total :', '{:.3f}'.format(win / total))
     save_file_at_new_dir(dir_path, n_filename , new_file_content , mode='w')
