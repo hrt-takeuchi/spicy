@@ -3,19 +3,29 @@ from __future__ import print_function, division
 import random
 # 時間計測用
 import time
+# 結果出力
+from readrecord import read_record,save_file_at_new_dir
 
 # this is main script
 
 import aiwolfpy
 import aiwolfpy.contentbuilder as cb
 
+import shutil
+
+
 # sample 
 import aiwolfpy.spicy
 
 import numpy as np
 from aiwolfpy import savelog
+# ログの削除用
+import os
+
 
 myname = 'spicy'
+
+games_number = 0
 
 class PythonPlayer(object):
     
@@ -100,7 +110,11 @@ class PythonPlayer(object):
         self.talk_turn = 0
         self.whis_declare = 0
         day_num = str(self.base_info['day'])
-        print( day_num+"日目" )   
+        global games_number
+        if day_num == "0":
+            games_number += 1
+            print(str(games_number) + "試合目開始")
+        print( day_num+"日目" ) 
         return None
     
     def talk(self):
@@ -372,9 +386,16 @@ agent = PythonPlayer(myname)
 
 # run
 if __name__ == '__main__':
+    top = '../log/'
+    for root, dirs, files in os.walk(top, topdown=False):
+      for name in files:
+          os.remove(os.path.join(root, name))
+      for name in dirs:
+          os.rmdir(os.path.join(root, name))
     t1 = time.time()
     aiwolfpy.connect_parse(agent)
     t2 = time.time()
     # 経過時間を表示
     elapsed_time = t2-t1    
     print(f"経過時間：{elapsed_time}")
+    read_record()

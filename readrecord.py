@@ -2,25 +2,23 @@ import glob
 from collections import OrderedDict
 import os
 from datetime import datetime
+from aiwolfpy import savelog
 
 
 
-def save_file_at_new_dir(new_dir_path, new_filename, new_file_content, mode='w'):
-    os.makedirs(new_dir_path, exist_ok=True)
-    with open(os.path.join(new_dir_path, new_filename), mode) as f:
-        f.writelines(new_file_content)
 
-dir_path = './'
-new_file_content = []
-now = datetime.now()
-n_filename = '{0:%Y%m%d-%H:%M}w_rate.txt'.format(now)
+def read_record():
+    dir_path = '../Agent/'
+    new_file_content = []
+    now = datetime.now()
+    n_filename = '{0:%Y%m%d-%H:%M}w_rate.txt'.format(now)
 
 
-if __name__ == '__main__':
-    
+    # if __name__ == '__main__':
+        
     log_list = []
     result_list = []
-    file_list = glob.glob('./log/*.log')
+    file_list = glob.glob('../log/*.log')
 
     for filename in file_list:
         with open(filename, 'r') as input:
@@ -80,13 +78,20 @@ if __name__ == '__main__':
         # 役職 : 勝った回数 / 担当した回数 : 勝率
 
         text_content = str(key) + ':' + str(value[0]) + '/' + str(value[1]) + ':' + str('{:.3f}'.format(rate)) + '\r\n'
-        # print(key, ':', value[0], '/', value[1], ':', '{:.3f}'.format(rate))
+        print(key, ':', value[0], '/', value[1], ':', '{:.3f}'.format(rate))
         new_file_content.append(text_content)
-    # print('win :', win)
-    # print('total :', total)
+    print('win :', win)
+    print('total :', total)
     # 全体の勝率
     total_content = 'Total :' + str('{:.3f}'.format(win / total))
     new_file_content.append(total_content)
     # print('Total :', '{:.3f}'.format(win / total))
     save_file_at_new_dir(dir_path, n_filename , new_file_content , mode='w')
-    print('ファイル'+n_filename+'保存完了')
+    print('ファイル:'+n_filename+' 保存完了')
+
+
+
+def save_file_at_new_dir(new_dir_path, new_filename, new_file_content, mode='w'):
+    os.makedirs(new_dir_path, exist_ok=True)
+    with open(os.path.join(new_dir_path, new_filename), mode) as f:
+        f.writelines(new_file_content)
