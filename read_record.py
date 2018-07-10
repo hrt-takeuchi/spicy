@@ -2,8 +2,7 @@ import glob
 from collections import OrderedDict
 import os
 from datetime import datetime
-from aiwolfpy import savelog
-
+from savelog import save_log
 
 
 
@@ -87,6 +86,8 @@ def read_record():
     print(total_content)
     new_file_content.append(total_content)
     # print('Total :', '{:.3f}'.format(win / total))
+
+    ### ファイル保存
     save_file_at_new_dir(dir_path, n_filename , new_file_content , mode='w')
     print('ファイル:'+n_filename+' 保存完了')
 
