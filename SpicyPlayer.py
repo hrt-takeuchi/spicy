@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function, division
+from __future__ import print_function, division 
 
 # this is main script
 
@@ -7,8 +7,8 @@ import aiwolfpy
 import aiwolfpy.contentbuilder as cb
 import numpy as np
 
-# sample
-import aiwolfpy.spicy
+# sample 
+import aiwolfpy.cash
 import random
 from savelog import save_log
 
@@ -19,28 +19,28 @@ import os
 from read_record import read_record,save_file_at_new_dir
 myname = 'Spicy'
 
-from aiwolfpy.forCal import dead_or_alive
+from aiwolfpy.forCal import dead_or_alive 
 
 class SpicyPlayer(object):
-
+    
 
     def __init__(self, agent_name):
         # myname
         self.myname = agent_name
-
+        
         # predictor from sample
         # DataFrame -> P
-        self.predicter_15 = aiwolfpy.spicy.Predictor_15()
-        self.predicter_5 = aiwolfpy.spicy.Predictor_5()
+        self.predicter_15 = aiwolfpy.cash.Predictor_15()
+        self.predicter_5 = aiwolfpy.cash.Predictor_5()
 
 
         self.win_rate = [1 for i in range(15)]
 
-
-
+        
+        
     def getName(self):
         return self.myname
-
+    
 
 
     def initialize(self, base_info, diff_data, game_setting):
@@ -50,20 +50,20 @@ class SpicyPlayer(object):
         self.base_info = base_info
         # game_setting
         self.game_setting = game_setting
-
+        
         # initialize
         if self.game_setting['playerNum'] == 15:
             self.predicter_15.initialize(base_info, game_setting)
-        elif self.game_setting['playerNum'] == 5:
+        elif self.game_setting['playerNum'] == 5:   
             self.predicter_5.initialize(base_info, game_setting)
             if len(self.win_rate) == 15:
                 del self.win_rate[4:14]
 
+                
 
 
-
-
-        ### EDIT FROM HERE ###
+                
+        ### EDIT FROM HERE ###     
         self.divined_list = []
         self.comingout = ''
         self.myresult = ''
@@ -86,11 +86,12 @@ class SpicyPlayer(object):
         self.posList = [] #狂人
         self.werList = [] #人狼
         self.seerBlackList = [] # 占い師ブラックリスト
+        self.seer_roller = 0
 
         # 生存者リスト
         self.aliveList = []
 
-
+        
 
     def update(self, base_info, diff_data, request):
         # print(base_info)
@@ -120,7 +121,7 @@ class SpicyPlayer(object):
                         self.identifyResult = 1
                         self.myresult = diff_data['text'][i]
 
-
+        
         # result
         if request == 'DAILY_INITIALIZE':
             for i in range(diff_data.shape[0]):
@@ -128,27 +129,27 @@ class SpicyPlayer(object):
                 if diff_data['type'][i] == 'identify':
                     self.not_reported = True
                     self.myresult = diff_data['text'][i]
-
+                    
                 # DIVINE
                 if diff_data['type'][i] == 'divine':
                     self.not_reported = True
                     self.myresult = diff_data['text'][i]
-
+                    
                 # GUARD
                 if diff_data['type'][i] == 'guard':
                     self.myresult = diff_data['text'][i]
-
+                
             # POSSESSED
             if self.base_info['myRole'] == 'POSSESSED':
                 self.not_reported = True
-
+                
         # UPDATE
         if self.game_setting['playerNum'] == 15:
             # update pred
             self.predicter_15.update(diff_data)
         else:
             self.predicter_5.update(diff_data)
-
+            
         # カミングアウトリスト
         # 0:村人 1:占い師 2:霊媒師 3:狂人 4:人狼
         for i in range(diff_data.shape[0]):
@@ -172,20 +173,22 @@ class SpicyPlayer(object):
             self.posList = [i for i, x in enumerate(self.comingout_list) if x == 3]
             self.werList = [i for i, x in enumerate(self.comingout_list) if x == 4]
 
+        if len(self.aliveList) == 3:
+            self.seer_roller = 1
 
 
-
+        
     def dayStart(self):
         self.vote_declare = 0
         self.talk_turn = 0
         return None
-
-    def talk(self):
-        rand_rate = random.random()
+    
+    def talk(self):      
+        rand_rate = random.random()  
         if self.game_setting['playerNum'] == 15:
-
+            
             self.talk_turn += 1
-
+            
             # 1.comingout anyway
 
             if self.base_info['myRole'] == 'SEER' and self.comingout == '':
@@ -203,30 +206,30 @@ class SpicyPlayer(object):
                     self.comingout = 'POSSESSED'
                     return cb.comingout(self.base_info['agentIdx'], self.comingout)
                 if self.comingout == '':
-                        if rand_rate > 0.4:
+                        if rand_rate > 0.15:
                             self.comingout = 'SEER'
-                            rand_rate = random.random()
+                            rand_rate = random.random() 
                             return cb.comingout(self.base_info['agentIdx'], self.comingout)
                         # 霊媒師のふりするときも
-                        elif rand_rate > 0.3:
+                        elif rand_rate > 0.05:
                             self.comingout = 'MEDIUM'
-                            rand_rate = random.random()
+                            rand_rate = random.random() 
                             return cb.comingout(self.base_info['agentIdx'], self.comingout)
-                        # たまに人狼って言っちゃう
-                        elif rand_rate > 0.25:
+                        # たまに人狼って言う
+                        elif rand_rate < 0.05:
                             self.comingout == 'WEREWOLF'
-                            rand_rate = random.random()
+                            rand_rate = random.random() 
                             return cb.comingout(self.base_info['agentIdx'], self.comingout)
-                # さらにカミングアウトしたり
-                elif self.comingout == 'MEDIUM' and rand_rate > 0.7:
-                    self.comingout = 'SEER'
-                    return cb.comingout(self.base_info['agentIdx'], self.comingout)
-                elif self.comingout == 'SEER' and rand_rate > 0.9:
-                    self.comingout = 'MEDIUM'
-                    return cb.comingout(self.base_info['agentIdx'], self.comingout)
-                elif self.comingout == 'WEREWOLF' and rand_rate > 0.5:
-                    self.comingout = 'HUMAN'
-                    return cb.comingout(self.base_info['agentIdx'], self.comingout)
+                # # さらにカミングアウト
+                # elif self.comingout == 'MEDIUM' and rand_rate > 0.7:
+                #     self.comingout = 'SEER'
+                #     return cb.comingout(self.base_info['agentIdx'], self.comingout)
+                # elif self.comingout == 'SEER' and rand_rate > 0.9:
+                #     self.comingout = 'MEDIUM'
+                #     return cb.comingout(self.base_info['agentIdx'], self.comingout)
+                # elif self.comingout == 'WEREWOLF' and rand_rate > 0.5:
+                #     self.comingout = 'HUMAN'
+                #     return cb.comingout(self.base_info['agentIdx'], self.comingout)
             # 村人の時
             elif self.base_info['myRole'] == 'VILLAGER' and self.comingout == '':
                 # PP対策
@@ -244,13 +247,13 @@ class SpicyPlayer(object):
                 elif len(self.aliveList) == 5 and len(dead_or_alive(self.posList, self.aliveList)) != 0 and len(self.werList) == 2:
                     self.comingout = 'WEREWOLF'
                     return cb.comingout(self.base_info['agentIdx'], self.comingout)
-            # 7人
-                elif len(self.aliveList) == 7 and len(dead_or_alive(self.posList, self.aliveList)) != 0 and len(self.werList) == 3:
-                    self.comingout = 'WEREWOLF'
-                    return cb.comingout(self.base_info['agentIdx'], self.comingout)
+            # # 7人
+            #     elif len(self.aliveList) == 7 and len(dead_or_alive(self.posList, self.aliveList)) != 0 and len(self.werList) == 3:
+            #         self.comingout = 'WEREWOLF'
+            #         return cb.comingout(self.base_info['agentIdx'], self.comingout) 
 
 
-
+            
             # 2.report
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
@@ -272,11 +275,11 @@ class SpicyPlayer(object):
                         idx = i
                 self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
-
-
+            
+                
             # 3.declare vote if not yet
             if self.vote_declare != self.vote():
-                # 3日目に人狼は生存者リストからランダムに選んで投票先を発言する
+                # 3日目に人狼は生存者リストからランダムに選んで投票先を発言する   
                 if self.base_info['myRole'] == "WEREWOLF" and self.base_info['day'] == 3:
                     randlist = []
                     for i in range(1, 16):
@@ -293,7 +296,7 @@ class SpicyPlayer(object):
                             return cb.estimate(idx_num, "WEREWOLF")
             self.vote_declare = self.vote()
             return cb.vote(self.vote_declare)
-
+                
             # 4. skip
             if self.talk_turn <= 10:
                 return cb.skip()
@@ -301,7 +304,7 @@ class SpicyPlayer(object):
             return cb.over()
         else:
             self.talk_turn += 1
-
+            
             # 1.comingout anyway
             if self.base_info['myRole'] == 'SEER' and self.comingout == '':
                 self.comingout = 'SEER'
@@ -313,7 +316,7 @@ class SpicyPlayer(object):
                 self.comingout = 'SEER'
                 return cb.comingout(self.base_info['agentIdx'], self.comingout)
 
-
+            
             # 2.report
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
@@ -342,18 +345,18 @@ class SpicyPlayer(object):
             if self.vote_declare != self.vote():
                 self.vote_declare = self.vote()
                 return cb.vote(self.vote_declare)
-
+                
             # 4. skip
             if self.talk_turn <= 10:
                 return cb.skip()
-
+                
             return cb.over()
-
+    
     def whisper(self):
         return cb.skip()
-
+        
     def vote(self):
-        # パワープレイ
+        # パワープレイ 
         if len(self.aliveList) == 3:
             id_num = []
             if self.base_info['myRole'] == "WEREWOLF" or self.base_info['myRole'] == "POSSESSED":
@@ -393,7 +396,7 @@ class SpicyPlayer(object):
                         if self.base_info['statusMap'][str(i)] == 'ALIVE':
                             idx = i
                     # print('黒吊りだぜ')
-                else:
+                else: 
                     # highest prob ww in alive agents provided watashi ningen
                     p = -1
                     idx = 1
@@ -404,12 +407,10 @@ class SpicyPlayer(object):
                             idx = i
             # 占いローラー
             else:
-                if len(self.seeList) >= 3: #占い師ＣＯ者が3人以上なら
+                if self.seer_roller == 1: #占い師ＣＯ者が3人以上なら
                     idx = 1
-                    for i in self.seelist:
+                    for i in self.seeList:
                         if self.base_info['statusMap'][str(i)] == 'ALIVE':
-                    #         self.idx = i
-                    # return self.idx
                             idx = i
                     # print('占いローラーだ！！')
                 else:
@@ -470,7 +471,7 @@ class SpicyPlayer(object):
                         p = p0
                         idx = i
             return idx
-
+    
     def attack(self):
         if self.game_setting['playerNum'] == 15:
             # highest prob hm in alive agents
@@ -487,7 +488,7 @@ class SpicyPlayer(object):
                     idx = i
             return idx
         else:
-            # 強いやつ噛んじゃえ
+            # 強いやつ噛み
             # self.strength = np.argsort(self.win_rate)
             # for i in range(0, 5):
             #     idx_num = self.strength[i] + 1
@@ -505,7 +506,7 @@ class SpicyPlayer(object):
                    p = p0
                    idx = i
             return idx
-
+    
     def divine(self):
         if self.game_setting['playerNum'] == 15:
             # 初日は勝率の高い人を占う
@@ -537,7 +538,7 @@ class SpicyPlayer(object):
                     idx = i
             self.divined_list.append(idx)
             return idx
-
+    
     def guard(self):
         if self.game_setting['playerNum'] == 15:
             # highest prob hm in alive agents
@@ -553,7 +554,7 @@ class SpicyPlayer(object):
         else:
             # no need
             return 1
-
+    
     def finish(self):
 
         if self.game_setting['playerNum'] == 15:
@@ -565,8 +566,8 @@ class SpicyPlayer(object):
                 if self.base_info['statusMap'][str(i)] == 'ALIVE':
                     self.win_rate[i-1] += 1
         pass
-
-
+        
+    
 
 agent = SpicyPlayer(myname)
 
@@ -589,4 +590,4 @@ if __name__ == '__main__':
     # print(f"経過時間：{elapsed_time}")
     # # 大会時コメントアウト
     # read_record()
-    #
+    # 
