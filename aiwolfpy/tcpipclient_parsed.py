@@ -6,7 +6,7 @@ TcpIpClient_parsed
 Date:2017/06/18
 """
 
-from __future__ import print_function, division 
+from __future__ import print_function, division
 import argparse
 import socket
 from socket import error as SocketError
@@ -71,7 +71,7 @@ def connect_parse(agent):
                 # request must exist
                 # print(obj_recv['request'])
                 request = obj_recv['request']
-                
+
                 # run requested
                 if request == 'NAME':
                     sock.send((agent.getName() + '\n').encode('utf-8'))
