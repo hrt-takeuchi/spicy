@@ -8,7 +8,7 @@ import aiwolfpy.contentbuilder as cb
 import numpy as np
 
 # sample 
-import aiwolfpy.cash
+import aiwolfpy.spicy
 import random
 from savelog import save_log
 
@@ -17,9 +17,16 @@ import time
 import os
 # 結果出力
 from read_record import read_record,save_file_at_new_dir
-myname = 'Spicy'
+
 
 from aiwolfpy.forCal import dead_or_alive 
+
+## 正規表現 0718
+import re
+
+
+
+myname = "Spicy"
 
 class SpicyPlayer(object):
     
@@ -30,8 +37,8 @@ class SpicyPlayer(object):
         
         # predictor from sample
         # DataFrame -> P
-        self.predicter_15 = aiwolfpy.cash.Predictor_15()
-        self.predicter_5 = aiwolfpy.cash.Predictor_5()
+        self.predicter_15 = aiwolfpy.spicy.Predictor_15()
+        self.predicter_5 = aiwolfpy.spicy.Predictor_5()
 
 
         self.win_rate = [1 for i in range(15)]
@@ -61,7 +68,8 @@ class SpicyPlayer(object):
 
                 
 
-
+        # 自分のID0718
+        self.id = self.base_info['agentIdx']
                 
         ### EDIT FROM HERE ###     
         self.divined_list = []
@@ -85,13 +93,15 @@ class SpicyPlayer(object):
         self.medList = [] #霊媒師
         self.posList = [] #狂人
         self.werList = [] #人狼
-        self.seerBlackList = [] # 占い師ブラックリスト
+        self.seerBlackList = [] # 自分が占い師の時の対抗者のリスト
         self.seer_roller = 0
 
         # 生存者リスト
         self.aliveList = []
-
-        
+        # 村人陣営用ブラックリスト(黒出ししてきたら黒)
+        self.blackList = []
+        # 占い師用ブラックリスト
+        self.seerBlack = []        
 
     def update(self, base_info, diff_data, request):
         # print(base_info)
@@ -100,7 +110,6 @@ class SpicyPlayer(object):
         # update base_info
         self.base_info = base_info
         self.identifyResult = 0
-
         # 生存者リスト
         self.aliveList = [i for i, x in self.base_info['statusMap'].items() if x == 'ALIVE']
         # print(self.aliveList)
@@ -111,8 +120,9 @@ class SpicyPlayer(object):
             if diff_data['text'][i] != 'skip' and diff_data['text'][i] != 'over':
                 self.talk_number[int(diff_data['agent'][i])-1] += 1
 
-
+        # talk数で降順にidを並べたリスト
         self.talk_num_order_list = np.argsort(self.talk_number)[::-1] + 1
+
 
         # 黒出し霊媒用
         if base_info['myRole'] == 'MEDIUM':
@@ -121,7 +131,35 @@ class SpicyPlayer(object):
                         self.identifyResult = 1
                         self.myresult = diff_data['text'][i]
 
-        
+
+        #########################################################################
+        # 占い師用ブラックリスト
+        if base_info['myRole'] == 'SEER':
+            for i in range(diff_data.shape[0]):
+                if diff_data['type'][i] == 'divine' and diff_data['text'][i].split()[2] == 'WEREWOLF':
+                    black = diff_data['text'][i].split()[1]
+                    blackid = int(black.replace('Agent[','').replace(']',''))
+                    self.seerBlack.append(blackid)
+                    print('占い専用ブラックリスト')
+                    print(self.seerBlack)
+        # 村人陣営用ブラックリスト(黒出ししてきたら黒)
+        if base_info['myRole'] !=  'WEREWOLF' and base_info['myRole'] !=  'POSSESSED':
+            for i in range(diff_data.shape[0]):
+                if diff_data['type'][i] == 'talk' and diff_data['text'][i].split()[0] == 'DIVINED' and diff_data['text'][i].split()[2] == 'WEREWOLF' and diff_data['text'][i].split()[1] == ('Agent[' + str(self.id) +']'):
+                    self.blackList.append(diff_data['agent'][i])
+                    print('ブラックリストは')
+                    print(self.blackList)
+
+
+        # 投票あわせのためVOTEリスト 
+        for i in range(diff_data.shape[0]):
+            if diff_data['type'][i] == 'vote' and diff_data['text'][i].split()[0] == 'VOTE':
+                vote_num = int(diff_data['text'][i].split()[1].replace('Agent[','').replace(']','')) - 1
+                self.vote_list[vote_num] += 1
+                # print('ボートリストは')
+                # print(self.vote_list)
+
+        ############################################################################
         # result
         if request == 'DAILY_INITIALIZE':
             for i in range(diff_data.shape[0]):
@@ -158,7 +196,7 @@ class SpicyPlayer(object):
                 if diff_data['text'][i].split()[2] == 'SEER':
                     self.comingout_list[coid] = '1'
                     # ついでに自分が占い師ならブラックリスト登録
-                    if self.base_info['myRole'] == 'SEER' and  self.base_info['agentIdx'] != coid:
+                    if self.base_info['myRole'] == 'SEER' and  self.id != coid:
                         self.seerBlackList.append(coid+1)
 
                 elif (diff_data['text'][i].split()[2] == 'MEDIUM'):
@@ -181,6 +219,10 @@ class SpicyPlayer(object):
     def dayStart(self):
         self.vote_declare = 0
         self.talk_turn = 0
+        ########################################################
+        # 投票合わせ用のvoteリスト
+        self.vote_list = [0 for i in range(15)]
+        #######################################################
         return None
     
     def talk(self):      
@@ -233,7 +275,7 @@ class SpicyPlayer(object):
             # 村人の時
             elif self.base_info['myRole'] == 'VILLAGER' and self.comingout == '':
                 # PP対策
-                if len(self.aliveList):
+                if len(self.aliveList) == 3:
                     self.comingout = 'WEREWOLF'
                     return cb.comingout(self.base_info['agentIdx'], self.comingout)
 
@@ -356,6 +398,13 @@ class SpicyPlayer(object):
         return cb.skip()
         
     def vote(self):
+        ####################################################
+        ## vote_listの投票多い順の並び替え
+        voteList = np.argsort(self.vote_list)[::-1] + 1
+        ## print("votelist")
+        ## print(voteList)
+        ###################################################
+
         # パワープレイ 
         if len(self.aliveList) == 3:
             id_num = []
@@ -367,7 +416,15 @@ class SpicyPlayer(object):
             if len(id_num) != 0:
                 idx = id_num[0]
                 return idx
+        # 投票逃れ
+        if vote_list[voteList[0]+1] == vote_list[self.id-1]:
+            for i in voteList:
+                if(i != self.id):
+                    idx = i
+                    return idx
 
+
+        ## 15人人狼
         if self.game_setting['playerNum'] == 15:
             p0_mat = self.predicter_15.ret_pred_wn()
             if self.base_info['myRole'] == "WEREWOLF":
@@ -390,12 +447,16 @@ class SpicyPlayer(object):
                         idx = i
             elif self.base_info['myRole'] == "SEER":
                 # 黒リストから投票
-                if len(self.seerBlackList) > 0:
+                if len(self.blackList) > 0:
                     idx = 1
-                    for i in self.seerBlackList:
+                    aliveBlackList = [] 
+                    for i in self.blackList:
                         if self.base_info['statusMap'][str(i)] == 'ALIVE':
+                            aliveBlackList.append(i) 
+                    for i in aliveBlackList:
+                        if(i in voteList[0:1]):
                             idx = i
-                    # print('黒吊りだぜ')
+                            print('黒吊りだぜ:' + str(i))
                 else: 
                     # highest prob ww in alive agents provided watashi ningen
                     p = -1
@@ -433,6 +494,9 @@ class SpicyPlayer(object):
             #             idx = idx_num
             #             break
             # return idx
+
+
+        ## 5人人狼
         else:
             if self.base_info['myRole'] == "WEREWOLF":
                 p0_mat = self.predicter_5.ret_pred_wx(1)
