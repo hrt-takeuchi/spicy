@@ -115,15 +115,16 @@ class SpicyPlayer(object):
         serializers.load_hdf5("mymodel0718.h5", model)
 
         #変更2 特徴量リスト--------------------------------------------------------
-        self.feature_value = np.zeros((15, 11), dtype='float32')
+        self.feature_value = np.zeros((15, 11), dtype='float32') #0~14
         #-----------------------------------------------------------------------
 
 
 
     def update(self, base_info, diff_data, request):
-        # print(base_info)
-        #print(diff_data)
-        #print('-----------------------------------------------------------------------------------------------------')
+        print(base_info['agentIdx'])
+        print(base_info)
+        print(diff_data)
+        print('-----------------------------------------------------------------------------------------------------')
         # print(self.win_rate)
         # update base_info
         self.base_info = base_info
@@ -207,18 +208,59 @@ class SpicyPlayer(object):
         if len(self.aliveList) == 3:
             self.seer_roller = 1
 
+        #変更-----------------------------------------------------------
+        print(diff_data)
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        for i in range(len(diff_data)):
+            if 'talk' in diff_data['type'][i] and 'DIVINED' in diff_data['text'][i]:
+                if diff_data['text'][i][18] =="H": #人間判定なら
+                    #人間判定された回数「特徴量3」
+                    self.feature_value[int(diff_data['text'][i][14:16])-1][2] += 1
+                    #人間判定した回数「特徴量5」
+                    self.feature_value[int(diff_data['agent'][i])-1][4] += 1
+                elif diff_data['text'][i][18] =="W": #人狼判定なら
+                    #人狼判定された回数「特徴量4」
+                    self.feature_value[int(diff_data['text'][i][14:16])-1][3] += 1
+                    #人狼判定した回数「特徴量6」
+                    self.feature_value[int(diff_data['agent'][i])-1][5] += 1
+                else:
+                    print('予期せぬエラー発生！！')
+            if diff_data['type'][i] =='talk':
+                if 'ESTIMATE' in diff_data['text'][i]  and 'HUMAN' in diff_data['text'][i] or 'AGREE' in diff_data['text'][i]:
+                    #賛成・信頼回数「特徴量8」
+                    self.feature_value[int(diff_data['agent'][i])-1][8] += 1
+                if 'ESTIMATE' in diff_data['text'][i] and 'WEREWOLF' in diff_data['text'][i] or 'DISAGREE' in diff_data['text'][i]:
+                    #反対・不信回数「特徴量」
+                    self.feature_value[int(diff_data['agent'][i])-1][9] += 1
+
+            #処刑なら1、襲撃なら2「特徴量7」
+            if diff_data['type'][i] == 'execute':
+                self.feature_value[int(diff_data['agent'][i])-1][7]=1
+            elif diff_data['type'][i] == 'dead':
+                self.feature_value[int(diff_data['agent'][i])-1][7]=2
+
+
+        print('---------------------------------------------')
+        print(base_info['agentIdx'])
+        print(self.feature_value)
+        #---------------------------------------------------------------
+
+
 
 
     def dayStart(self):
         #変更-----------------------------------------------------------
-        #日にち
-        for i in range(0, 15):
-            self.feature_value[i][0] = self.feature_value[i][0] + 1
-            # if self.base_info['statusMap'][str(i)] == 'ALIVE':
-            #     print("aaaaaaaa"
-            #     self.feature_value[i][6] = 1
-        print(self.feature_value)
-        #生きていたら0,死んでいたら１
+        #日にち「特徴量1」
+        for i in range(1, 16):
+            self.feature_value[i-1][0] = self.feature_value[i-1][0] + 1
+            #生死「特徴量2」
+            if self.base_info['statusMap'][str(i)] == 'ALIVE':
+                self.feature_value[i-1][6] = 1
+            elif self.base_info['statusMap'][str(i)] == 'DEAD':
+                self.feature_value[i-1][6] = 0
+            #発言数「特徴量11」
+            self.feature_value[i-1][10] = self.talk_number[i-1]
+
         print('---------------------------------------------')
         #------------------------------------------------------------
 
