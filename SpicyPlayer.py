@@ -66,7 +66,10 @@ class SpicyPlayer(object):
         self.base_info = base_info
         # game_setting
         self.game_setting = game_setting
-        
+
+        #推定スコアリスト
+        self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0}
+
         # initialize
         if self.game_setting['playerNum'] == 15:
             self.predicter_15.initialize(base_info, game_setting)
@@ -145,8 +148,6 @@ class SpicyPlayer(object):
         #変更2--------------------------------------------------------
         #特徴量リスト
         self.feature_value = np.zeros((15, 11), dtype='float32') #0~14
-        #推定スコアリスト
-        self.estimate_score = [0 for i in range(15)] #0~14
         #-----------------------------------------------------------------------
 
 
@@ -361,11 +362,11 @@ class SpicyPlayer(object):
         # print(self.feature_value)
 
 
-        #推定・スコアリストに追加
-        y = self.model.forward(self.feature_value)
-        for i in range(0, 15):
-            self.estimate_score[i] = y[i][1] - y[i][0]
-            # print (self.estimate_score[i])
+        # #推定・スコアリストに追加
+        # y = self.model.forward(self.feature_value)
+        # for i in range(0, 15):
+        #     self.estimate_score[i] = y[i][1] - y[i][0]
+        #     # print (self.estimate_score[i])
 
 
         #---------------------------------------------------------------
@@ -610,6 +611,17 @@ class SpicyPlayer(object):
         # return cb.skip()
         
     def vote(self):
+        #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+        #推定・スコアリストに追加
+
+        y = self.model.forward(self.feature_value)
+        for i in range(0, 15):
+            self.estimate_score[str(i+1)] = float(str(y[i][1] - y[i][0]).replace("variable(","").replace(")",""))
+        self.jinro_score = sorted(self.estimate_score.items(), key=lambda x: x[1])
+
+        #/ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+
+
         ####################################################
         ## vote_listの投票多い順の並び替え
         voteList = np.argsort(self.vote_list)[::-1] + 1
@@ -647,32 +659,40 @@ class SpicyPlayer(object):
                         return idx
             # 人狼なら
             if self.base_info['myRole'] == "WEREWOLF":
-                p = -1
+                #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                 idx = 1
-                for i in range(1, 16):
-                    p0 = p0_mat[i-1, 1]
-                    if str(i) in self.base_info['roleMap'].keys():
-                        p0 *= 0.5
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
-                        return idx
+                for i in range(1,15):
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != self.base_info['agentIdx']:
+                            idx = int(self.jinro_score[i][0])
+                            print(self.jinro_score[i][0] + 'に投票')
+                            break
+                    else:
+                        print('失敗')
+                        continue
+                    break
+                return idx
+                #ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
             elif self.base_info['myRole'] == "POSSESSED":
-                p = -1
+                #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                 idx = 1
-                for i in range(1, 16):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
-                        return idx
+                for i in range(1,15):
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != self.base_info['agentIdx']:
+                            idx = int(self.jinro_score[i][0])
+                            print(self.jinro_score[i][0] + 'に投票')
+                            break
+                    else:
+                        print('失敗')
+                        continue
+                    break
+                return idx
+                #ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+
             # 黒出しへ投票
             if len(self.blackList) > 0:
                 for i in self.blackList:
                     if i in voteList[0:3]:
                         idx = i
                         return idx
-
 
 
 
@@ -690,13 +710,22 @@ class SpicyPlayer(object):
                             # print('黒吊りだぜ:' + str(i))
                 else: 
                     # highest prob ww in alive agents provided watashi ningen
-                    p = -1
+
+        #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                     idx = 1
-                    for i in range(1, 16):
-                        p0 = p0_mat[i-1, 1]
-                        if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                            p = p0
-                            idx = i
+
+                    for i in range(1,15):
+                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != self.base_info['agentIdx']:
+                            idx = int(self.jinro_score[-i][0])
+                            # print(self.jinro_score[-i][0] + 'に投票')
+                            break
+                        else:
+                            # print('失敗')
+                            continue
+                        break
+                return idx
+        #/ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+       
             # 占いローラー
             else:
                 if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上なら
@@ -704,17 +733,21 @@ class SpicyPlayer(object):
                     for i in self.seeList:
                         if i in voteList[0:3]:
                             idx = i
-                    # print('占いローラーだ！！')
-                else:
+                    # print('占いローラーだ！！') #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                     idx = 1
-                    p = -1
-                    for i in range(1, 16):
-                        p0 = p0_mat[i-1, 1]
-                        if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                            p = p0
-                            idx = i
-                    #return idx
-            return idx
+                else:
+                    for i in range(1,15):
+                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != self.base_info['agentIdx']:
+                            idx = int(self.jinro_score[-i][0])
+                            # print(self.jinro_score[-i][0] + 'に投票')
+                            break
+                        else:
+                            # print(self.jinro_score[-i][0] + '失敗')
+                            continue
+                        break
+                return idx
+        #/ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+           
 
 
             # else:
