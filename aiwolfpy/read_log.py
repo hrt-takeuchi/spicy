@@ -11,10 +11,7 @@ def read_log(log_path):
         idx_ = []
         turn_ = []
         text_ = []
-        
-        day_vote_keys = dict()
-        day_attack_vote_keys = dict()
-        
+
         # for medium result
         medium = 0
         for row in log_reader:
@@ -51,7 +48,6 @@ def read_log(log_path):
                 idx_.append(int(row[2])), 
                 turn_.append(0), 
                 text_.append('VOTE Agent[' + "{0:02d}".format(int(row[3])) + ']')
-                
             elif row[1] == "attackVote":
                 agent_.append(int(row[3])), 
                 day_.append(int(row[0])), 
