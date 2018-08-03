@@ -66,19 +66,28 @@ class SpicyPlayer(object):
         self.base_info = base_info
         # game_setting
         self.game_setting = game_setting
-
-        #推定スコアリスト
-        self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0}
+        self.playerNum = self.game_setting['playerNum']
 
         # initialize
         if self.game_setting['playerNum'] == 15:
-            self.predicter_15.initialize(base_info, game_setting)
-        elif self.game_setting['playerNum'] == 5:   
-            self.predicter_5.initialize(base_info, game_setting)
+            #特徴量
+            self.feature_value = np.zeros((15, 11), dtype='float32') #0~14
+            #推定スコアリスト
+            self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0}
+            #モデルファイル名
+            model_file = "/aiwolfpy/spicy/data/mymodel0803_15.npz"
+        elif self.game_setting['playerNum'] == 5:
             if len(self.win_rate) == 15:
                 del self.win_rate[4:14]
                 del self.vila_win_rate[4:14]
                 del self.were_win_rate[4:14]
+            #特徴量
+            self.feature_value = np.zeros((5, 11), dtype='float32') #0~14
+            #推定スコアリスト
+            self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
+            #モデルデータ名
+            model_file = "/aiwolfpy/spicy/data/mymodel0803_5.npz"
+
         # 狼確定リスト
         self.wolfList = []
         ################################################################################
@@ -93,9 +102,8 @@ class SpicyPlayer(object):
         self.possessedList = [] 
         self.attackSeerCount = 0
         self.realSeerNum = 0
-        ##################################################################################
 
-        # 自分のID0718
+        # 自分のID
         self.id = self.base_info['agentIdx']
                 
         ### EDIT FROM HERE ###     
@@ -104,15 +112,10 @@ class SpicyPlayer(object):
         self.myresult = ''
         self.not_reported = False
         self.vote_declare = 0
+        self.pp_comingout = 0
 
         # # 各プレイヤーの発言数
         self.talk_number = [0 for i in range(15)]
-
-        # # 各プレイヤーの信頼度
-        # self.confidence =  [50 for i in range(15)]
-
-        # # 各プレイヤーのホワイトリスト
-        # self.white_list = [0 for i in range(15)]
 
         # カミングアウトリスト
         self.comingout_list = [0 for i in range(15)]
@@ -122,7 +125,8 @@ class SpicyPlayer(object):
         self.werList = [] #人狼
         self.seerBlackList = [] # 自分が占い師の時の対抗者のリスト
         self.seer_roller = 0
-
+        # 投票数リスト
+        self.vote_list = []
         # 生存者リスト
         self.aliveList = []
         # 村人陣営用ブラックリスト(黒出ししてきたら黒)
@@ -143,12 +147,11 @@ class SpicyPlayer(object):
                 h3 = self.l3(h2)
                 return h3
         self.model = DNN()
-        serializers.load_hdf5("mymodel0718.h5", self.model)
+        file_path = os.path.dirname(__file__) + model_file
+        self.model.to_cpu()
+        serializers.load_npz(file_path, self.model)
 
-        #変更2--------------------------------------------------------
-        #特徴量リスト
-        self.feature_value = np.zeros((15, 11), dtype='float32') #0~14
-        #-----------------------------------------------------------------------
+        self.jinro_score = []
 
 
     def update(self, base_info, diff_data, request):
@@ -160,8 +163,6 @@ class SpicyPlayer(object):
         self.identifyResult = 0
         # 生存者リスト
         self.aliveList = [i for i, x in self.base_info['statusMap'].items() if x == 'ALIVE']
-        # print(self.aliveList)
-
 
         # 各プレイヤーの発言数
         for i in range(diff_data.shape[0]):
@@ -170,7 +171,6 @@ class SpicyPlayer(object):
 
         # talk数で降順にidを並べたリスト
         self.talk_num_order_list = np.argsort(self.talk_number)[::-1] + 1
-
 
         # 黒出し霊媒用
         if base_info['myRole'] == 'MEDIUM':
@@ -188,23 +188,18 @@ class SpicyPlayer(object):
                     black = diff_data['text'][i].split()[1]
                     blackid = int(black.replace('Agent[','').replace(']',''))
                     self.wolfList.append(blackid)
-                    # print('占い専用ブラックリスト')
-                    # print(self.wolfList)
+
         # 村人陣営用ブラックリスト(黒出ししてきたら黒)
         if base_info['myRole'] !=  'WEREWOLF' and base_info['myRole'] !=  'POSSESSED':
             for i in range(diff_data.shape[0]):
                 if diff_data['type'][i] == 'talk' and diff_data['text'][i].split()[0] == 'DIVINED' and diff_data['text'][i].split()[2] == 'WEREWOLF' and diff_data['text'][i].split()[1] == ('Agent[' + str(self.id) +']'):
                     self.blackList.append(diff_data['agent'][i])
-                    # print('ブラックリストは')
-                    # print(self.blackList)
-
 
         # 投票あわせのためVOTEリスト 
         for i in range(diff_data.shape[0]):
             if diff_data['type'][i] == 'vote' and diff_data['text'][i].split()[0] == 'VOTE':
                 vote_num = int(diff_data['text'][i].split()[1].replace('Agent[','').replace(']','')) - 1
                 self.vote_list[vote_num] += 1
-
 
         # 人狼用の狂人確定リスト（人狼でない占いの自分への白だし）
         if base_info['myRole'] == 'WEREWOLF':
@@ -213,8 +208,6 @@ class SpicyPlayer(object):
                     pos_num = int(diff_data['text'][i].split()[1].replace('Agent[','').replace(']',''))
                     if pos_num not in self.wolfList:
                         self.possessedList.append(pos_num)
-                        # print('人狼から見た狂人は')
-                        # print(self.possessedList)
             # 占い確定
         if len(self.seeList) > 1 and len(self.possessedList) > 0:
             # 占いCOリストから人狼リストと狂確リストを除外
@@ -245,14 +238,15 @@ class SpicyPlayer(object):
             # POSSESSED
             if self.base_info['myRole'] == 'POSSESSED':
                 self.not_reported = True
-                
+        ###########################################################
+        # 変えなあかん        
         # UPDATE
         if self.game_setting['playerNum'] == 15:
             # update pred
             self.predicter_15.update(diff_data)
         else:
             self.predicter_5.update(diff_data)
-            
+        #############################################################
         # カミングアウトリスト
         # 0:村人 1:占い師 2:霊媒師 3:狂人 4:人狼
         for i in range(diff_data.shape[0]):
@@ -263,7 +257,6 @@ class SpicyPlayer(object):
                     # ついでに自分が占い師ならブラックリスト登録
                     if self.base_info['myRole'] == 'SEER' and  self.id != coid:
                         self.seerBlackList.append(coid+1)
-
                 elif (diff_data['text'][i].split()[2] == 'MEDIUM'):
                     self.comingout_list[coid] = 2
                 elif (diff_data['text'][i].split()[2] == 'POSSESSED'):
@@ -321,16 +314,9 @@ class SpicyPlayer(object):
                         self.win_rate[i-1] += 1
                     elif win_camp == 0 and (i not in wolf_camp):
                         self.vila_win_rate[i-1] += 1
-                        self.win_rate[i-1] += 1
-            # print("勝利数")
-            # print(self.win_rate)
-            # print("狼")
-            # print(self.were_win_rate)
-            # print("人")
-            # print(self.vila_win_rate)      
+                        self.win_rate[i-1] += 1     
         #####　勝ち数計算 #######################################################################3
 
-       #変更-----------------------------------------------------------
         for i in range(len(diff_data)):
             if 'talk' in diff_data['type'][i] and 'DIVINED' in diff_data['text'][i]:
                 if diff_data['text'][i][18] =="H": #人間判定なら
@@ -343,8 +329,6 @@ class SpicyPlayer(object):
                     self.feature_value[int(diff_data['text'][i][14:16])-1][3] += 1
                     #人狼判定した回数「特徴量6」
                     self.feature_value[int(diff_data['agent'][i])-1][5] += 1
-                else:
-                    print('予期せぬエラー発生！！')
                 if diff_data['type'][i] == 'talk':
                     if 'ESTIMATE' in diff_data['text'][i]  and 'HUMAN' in diff_data['text'][i] or 'AGREE' in diff_data['text'][i]:
                         #賛成・信頼回数「特徴量8」
@@ -359,25 +343,15 @@ class SpicyPlayer(object):
             elif diff_data['type'][i] == 'dead':
                 self.feature_value[int(diff_data['agent'][i])-1][7]=2
 
-        # print(self.feature_value)
-
-
-        # #推定・スコアリストに追加
-        # y = self.model.forward(self.feature_value)
-        # for i in range(0, 15):
-        #     self.estimate_score[i] = y[i][1] - y[i][0]
-        #     # print (self.estimate_score[i])
-
-
-        #---------------------------------------------------------------
-
-
-        
+        #推定スコア・更新
+        y = self.model.forward(self.feature_value)
+        for i in range(0, self.playerNum):
+            self.estimate_score[str(i+1)] = float(str(y[i][1] - y[i][0]).replace("variable(","").replace(")",""))
+        self.jinro_score = sorted(self.estimate_score.items(), key=lambda x: x[1])
+   
     def dayStart(self):
-
-        #変更-----------------------------------------------------------
         #日にち「特徴量1」
-        for i in range(1, 16):
+        for i in range(1, self.playerNum+1):
             self.feature_value[i-1][0] = self.feature_value[i-1][0] + 1
             #生死「特徴量2」
             if self.base_info['statusMap'][str(i)] == 'ALIVE':
@@ -387,19 +361,13 @@ class SpicyPlayer(object):
             #発言数「特徴量11」
             self.feature_value[i-1][10] = self.talk_number[i-1]
 
-        # print('---------------------------------------------')
-        #------------------------------------------------------------
-
-
         self.vote_declare = 0
         self.talk_turn = 0
-        #### whisper用のID
+        # whisper用のID
         self.attackId = 0
-        ########################################################
         # 投票合わせ用のvoteリスト
         self.vote_list = [0 for i in range(15)]
-        #######################################################
-        # COリストから死亡削除
+        # リストから死亡削除 #########################################
         if len(self.seeList) > 0:
             for num in self.seeList:
                 if self.base_info['statusMap'][str(num+1)] == 'DEAD':
@@ -424,70 +392,56 @@ class SpicyPlayer(object):
             for num in self.wolfList:
                 if self.base_info['statusMap'][str(num)] == 'DEAD':
                     self.wolfList.remove(num)
-        ########################################################
+        ###########################################################
 
 
         return None
     
     def talk(self):
         rand_rate = random.random()  
-        ##########################################################
+ 
         # パワープレイ
-        if self.base_info['day'] > 2 and len(self.aliveList) == 3:
+        if self.base_info['day'] > 2 and len(self.aliveList) == 3 and self.pp_comingout:
             if self.base_info['myRole'] == 'POSSESSED':
                 self.comingout = 'POSSESSED'
+                self.pp_comingout = False
                 return cb.comingout(self.id, self.comingout)
             elif self.base_info['myRole'] == 'WEREWOLF':
                 if len(self.posList) != 0:
                     self.comingout = 'WEREWOLF'
+                    self.pp_comingout = False
                     return cb.comingout(self.id, self.comingout)
-            elif len(self.posList) != 0 and len(self.werList) != 0 and self.comingout != '':
+            elif len(self.posList) != 0 and len(self.werList) != 0:
                 self.comingout = 'WEREWOLF'
-                print("coming out WEREWOLF")
+                self.pp_comingout = False
                 return cb.comingout(self.id, self.comingout)
-        ###########################################################
+        
         if self.game_setting['playerNum'] == 15:
-            
             self.talk_turn += 1
-            
-            # 1.comingout anyway
-
-            if self.base_info['myRole'] == 'SEER':
-                if self.comingout == '':
-                    self.comingout = 'SEER'
-                    return cb.comingout(self.id, self.comingout)
+            if self.base_info['myRole'] == 'SEER' and self.comingout == '':
+                self.comingout = 'SEER'
+                return cb.comingout(self.id, self.comingout)
             # 黒発見でカミングアウト
             elif self.base_info['myRole'] == 'MEDIUM' and self.comingout == '' and self.identifyResult == 1:
                 self.not_reported = False
                 self.comingout = 'MEDIUM'
                 return cb.comingout(self.id, self.comingout), self.myresult
             # 狂った人
-            elif self.base_info['myRole'] == 'POSSESSED':
-                if self.comingout == '':
-                        if rand_rate > 0.15:
-                            self.comingout = 'SEER'
-                            rand_rate = random.random() 
-                            return cb.comingout(self.id, self.comingout)
-                        # 霊媒師のふりするときも
-                        elif rand_rate > 0.05:
-                            self.comingout = 'MEDIUM'
-                            rand_rate = random.random() 
-                            return cb.comingout(self.id, self.comingout)
-                        # たまに人狼って言う
-                        elif rand_rate < 0.05:
-                            self.comingout == 'BODYGUARD'
-                            rand_rate = random.random() 
-                            return cb.comingout(self.id, self.comingout)
-                # # さらにカミングアウト
-                # elif self.comingout == 'MEDIUM' and rand_rate > 0.7:
-                #     self.comingout = 'SEER'
-                #     return cb.comingout(self.id, self.comingout)
-                # elif self.comingout == 'SEER' and rand_rate > 0.9:
-                #     self.comingout = 'MEDIUM'
-                #     return cb.comingout(self.id, self.comingout)
-                # elif self.comingout == 'WEREWOLF' and rand_rate > 0.5:
-                #     self.comingout = 'HUMAN'
-                #     return cb.comingout(self.id, self.comingout)
+            elif self.base_info['myRole'] == 'POSSESSED' and self.comingout == '':
+                if rand_rate > 0.15:
+                    self.comingout = 'SEER'
+                    rand_rate = random.random() 
+                    return cb.comingout(self.id, self.comingout)
+                # 霊媒師のふりするときも
+                elif rand_rate > 0.05:
+                    self.comingout = 'MEDIUM'
+                    rand_rate = random.random() 
+                    return cb.comingout(self.id, self.comingout)
+                # たまに防人って言う
+                elif rand_rate < 0.05:
+                    self.comingout == 'BODYGUARD'
+                    rand_rate = random.random() 
+                    return cb.comingout(self.id, self.comingout)
 
             # 人狼パワープレイ用
             # elif self.base_info['myRole'] == "WEREWOLF":
@@ -500,9 +454,6 @@ class SpicyPlayer(object):
             #         self.comingout = 'WEREWOLF'
             #         return cb.comingout(self.id, self.comingout) 
 
-
-            
-            # 2.report
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
                 return self.myresult
@@ -510,42 +461,37 @@ class SpicyPlayer(object):
                 self.not_reported = False
                 return self.myresult
             elif self.base_info['myRole'] == 'POSSESSED' and self.not_reported:
+
                 self.not_reported = False
-                # FAKE DIVINE
-                # highest prob ww in alive agents
-                p = -1
                 idx = 1
-                p0_mat = self.predicter_15.ret_pred()
-                for i in range(1, 16):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,15):
+                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                        idx = int(self.jinro_score[-i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
                 self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
             
-                
-            # 3.declare vote if not yet
             if self.vote_declare != self.vote():
                 # 3日目に人狼は生存者リストからランダムに選んで投票先を発言する   
                 if self.base_info['myRole'] == "WEREWOLF" and self.base_info['day'] == 3:
                     randlist = []
-                    for i in range(1, 16):
-                        if self.base_info['statusMap'][str(i)] == 'ALIVE' :
-                            randlist.append(i)
-                    rand_num=len(randlist)
+                    rand_num=len(self.aliveList)
                     rnd = int(random.uniform(1,rand_num))
-                    return cb.vote(rnd)
-                # elif self.base_info['myRole'] == 'VILLAGER':
-                # # 一番喋ってないやつに投票する
-                #     for i in range(0, 15):
-                #         idx_num = self.talk_num_order_list[i]
-                #         if self.base_info['statusMap'][str(idx_num)] == 'ALIVE' and idx_num != self.id:
-                #             return cb.vote(idx_num, "WEREWOLF")
+                    self.vote_declare = int(self.aliveList[rnd])
+                    return cb.vote(self.vote_declare)
+                else:
+                # 一番喋ってないやつに投票する
+                    for i in range(0, 15):
+                        idx_num = self.talk_num_order_list[i]
+                        if self.base_info['statusMap'][str(idx_num)] == 'ALIVE' and idx_num != self.id:
+                            self.vote_declare = idx_num
+                            return cb.vote(self.vote_declare)
             self.vote_declare = self.vote()
             return cb.vote(self.vote_declare)
-                
-            # 4. skip
+
             if self.talk_turn <= 10:
                 return cb.skip()
 
@@ -557,14 +503,14 @@ class SpicyPlayer(object):
             if self.base_info['myRole'] == 'SEER' and self.comingout == '':
                 self.comingout = 'SEER'
                 return cb.comingout(self.id, self.comingout)
-                 
+
             elif self.base_info['myRole'] == 'MEDIUM' and self.comingout == '':
                 self.comingout = 'MEDIUM'
                 return cb.comingout(self.id, self.comingout)
             elif self.base_info['myRole'] == 'POSSESSED' and self.comingout == '':
                 self.comingout = 'SEER'
                 return cb.comingout(self.id, self.comingout)
-            
+
             # 2.report
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
@@ -574,16 +520,14 @@ class SpicyPlayer(object):
                 return self.myresult
             elif self.base_info['myRole'] == 'POSSESSED' and self.not_reported:
                 self.not_reported = False
-                # FAKE DIVINE
-                # highest prob ww in alive agents
-                p = -1
                 idx = 1
-                p0_mat = self.predicter_5.ret_pred_wx(2)
-                for i in range(1, 6):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,5):
+                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                        idx = int(self.jinro_score[-i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
                 self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
 
@@ -593,11 +537,11 @@ class SpicyPlayer(object):
             if self.vote_declare != self.vote():
                 self.vote_declare = self.vote()
                 return cb.vote(self.vote_declare)
-                
+
             # 4. skip
             if self.talk_turn <= 10:
                 return cb.skip()
-                
+
             return cb.over()
    
     def whisper(self):
@@ -607,33 +551,12 @@ class SpicyPlayer(object):
         if self.attackId == 0:
             attackId = self.attack()
             return cb.attack(attackId)
-        
-        # return cb.skip()
+        return cb.skip()
         
     def vote(self):
-        #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-        #推定・スコアリストに追加
-
-        y = self.model.forward(self.feature_value)
-        for i in range(0, 15):
-            self.estimate_score[str(i+1)] = float(str(y[i][1] - y[i][0]).replace("variable(","").replace(")",""))
-        self.jinro_score = sorted(self.estimate_score.items(), key=lambda x: x[1])
-
-        #/ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-
-
-        ####################################################
         ## vote_listの投票多い順の並び替え
         voteList = np.argsort(self.vote_list)[::-1] + 1
-        # print("votevotelist")
-        # print(self.vote_list)
-        ###################################################
 
-        #変更-------------------------------------------------------------------
-        for i in range(0, 15):
-            self.feature_value[i][1] = len(self.seeList)
-        #------------------------------------------------------------------------
-     
         # パワープレイ 
         if len(self.aliveList) == 3:
             id_num = []
@@ -644,48 +567,32 @@ class SpicyPlayer(object):
             if len(id_num) != 0:
                 idx = id_num[0]
                 return idx
-
-
-
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
-            p0_mat = self.predicter_15.ret_pred_wn()
-            
-            # 投票逃れ(自分のvoteがvote最大数と同じなら)
-            if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] != 0 :
+            # 投票逃れ(自分のvoteがvote最大数と同じなら※最低2以上)
+            if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
                 for i in voteList:
                     if(i != self.id):
                         idx = i
                         return idx
-            # 人狼なら
             if self.base_info['myRole'] == "WEREWOLF":
-                #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                 idx = 1
                 for i in range(1,15):
-                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != self.base_info['agentIdx']:
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
                             idx = int(self.jinro_score[i][0])
-                            print(self.jinro_score[i][0] + 'に投票')
-                            break
                     else:
-                        print('失敗')
                         continue
                     break
                 return idx
-                #ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
             elif self.base_info['myRole'] == "POSSESSED":
-                #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                 idx = 1
                 for i in range(1,15):
-                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != self.base_info['agentIdx']:
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
                             idx = int(self.jinro_score[i][0])
-                            print(self.jinro_score[i][0] + 'に投票')
-                            break
                     else:
-                        print('失敗')
                         continue
                     break
                 return idx
-                #ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
 
             # 黒出しへ投票
             if len(self.blackList) > 0:
@@ -694,38 +601,23 @@ class SpicyPlayer(object):
                         idx = i
                         return idx
 
-
-
             if self.base_info['myRole'] == "SEER":
                 # 黒リストから投票
                 if len(self.wolfList) > 0:
                     idx = 1
                     aliveBlackList = [] 
                     for i in self.wolfList:
-                        if self.base_info['statusMap'][str(i)] == 'ALIVE':
-                            aliveBlackList.append(i) 
-                    for i in aliveBlackList:
-                        if(i in voteList[0:3]):
+                        if i in voteList[0:3]:
                             idx = i
-                            # print('黒吊りだぜ:' + str(i))
                 else: 
-                    # highest prob ww in alive agents provided watashi ningen
-
-        #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
                     idx = 1
-
                     for i in range(1,15):
-                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != self.base_info['agentIdx']:
+                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                             idx = int(self.jinro_score[-i][0])
-                            # print(self.jinro_score[-i][0] + 'に投票')
-                            break
                         else:
-                            # print('失敗')
                             continue
                         break
                 return idx
-        #/ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-       
             # 占いローラー
             else:
                 if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上なら
@@ -733,22 +625,15 @@ class SpicyPlayer(object):
                     for i in self.seeList:
                         if i in voteList[0:3]:
                             idx = i
-                    # print('占いローラーだ！！') #ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-                    idx = 1
                 else:
                     for i in range(1,15):
-                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != self.base_info['agentIdx']:
+                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                             idx = int(self.jinro_score[-i][0])
-                            # print(self.jinro_score[-i][0] + 'に投票')
-                            break
                         else:
-                            # print(self.jinro_score[-i][0] + '失敗')
                             continue
                         break
                 return idx
-        #/ヘンコウーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
            
-
 
             # else:
             #     # 一番喋ってないやつに投票する
@@ -762,42 +647,39 @@ class SpicyPlayer(object):
 
         ## 5人人狼
         else:
+            idx = 1
             if self.base_info['myRole'] == "WEREWOLF":
-                p0_mat = self.predicter_5.ret_pred_wx(1)
-                p = -1
-                idx = 1
-                for i in range(1, 6):
-                    p0 = p0_mat[i-1, 3]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,5):
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
+                        idx = int(self.jinro_score[i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
             elif self.base_info['myRole'] == "POSSESSED":
-                p0_mat = self.predicter_5.ret_pred_wx(2)
-                p = -1
-                idx = 1
-                for i in range(1, 6):
-                    p0 = p0_mat[i-1, 3]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,5):
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
+                        idx = int(self.jinro_score[i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
             elif self.base_info['myRole'] == "SEER":
-                p0_mat = self.predicter_5.ret_pred_wx(3)
-                p = -1
-                idx = 1
-                for i in range(1, 6):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,5):
+                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                        idx = int(self.jinro_score[-i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
             else:
-                p0_mat = self.predicter_5.ret_pred_wx(0)
-                p = -1
-                idx = 1
-                for i in range(1, 6):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                        p = p0
-                        idx = i
+                for i in range(1,5):
+                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                        idx = int(self.jinro_score[-i][0])
+                        # print(self.jinro_score[-i][0] + 'に投票')
+                    else:
+                        continue
+                    break
             return idx
     
     def attack(self):
@@ -815,28 +697,15 @@ class SpicyPlayer(object):
                 if self.base_info['statusMap'][str(i)] == 'ALIVE':
                     idx = i
             return idx
-            # highest prob hm in alive agents
-            # p = -1
-            # idx = 1
-            # p0_mat = self.predicter_15.ret_pred()
-            # for i in range(1, 16):
-            #     p0 = p0_mat[i-1, 0]
-            #     # 強かったらちょっと確率上げる
-            #     if i == (np.argsort(self.win_rate[0])) or i == (np.argsort(self.win_rate[1])) or i == (np.argsort(self.win_rate[2])):
-            #         p0 += 0.2
-            #     if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-            #         p = p0
-            #         idx = i
-            # return idx
         else:
-            p = 1
             idx = 1
-            p0_mat = self.predicter_5.ret_pred_wx(1)
-            for i in range(1, 6):
-               p0 = p0_mat[i-1, 2]
-               if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 < p and i != self.id:
-                   p = p0
-                   idx = i
+            for i in range(1,5):
+                if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
+                    idx = int(self.jinro_score[i][0])
+                    # print(self.jinro_score[-i][0] + 'に投票')
+                else:
+                    continue
+                break
             return idx
     
     def divine(self):
@@ -845,46 +714,37 @@ class SpicyPlayer(object):
             if self.base_info['day'] == 0:
                 self.strength = np.argsort(self.win_rate)
                 idx = self.strength[0] + 1
-                # print('強いやつ占った')
             else:
-                # highest prob ww in alive and not divined agents provided watashi ningen
-                p = -1
                 idx = 1
-                p0_mat = self.predicter_15.ret_pred_wn()
-                for i in range(1, 16):
-                    p0 = p0_mat[i-1, 1]
-                    if self.base_info['statusMap'][str(i)] == 'ALIVE' and i not in self.divined_list and p0 > p:
-                        p = p0
-                        idx = i
-                self.divined_list.append(idx)
+                for i in range(1,15):
+                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                        idx = int(self.jinro_score[-i][0])
+                    else:
+                        continue
+                    break
             return idx
         else:
-            # highest prob ww in alive and not divined agents provided watashi ningen
-            p = -1
             idx = 1
-            p0_mat = self.predicter_5.ret_pred_wx(3)
-            for i in range(1, 6):
-                p0 = p0_mat[i-1, 1]
-                if self.base_info['statusMap'][str(i)] == 'ALIVE' and i not in self.divined_list and p0 > p:
-                    p = p0
-                    idx = i
-            self.divined_list.append(idx)
+            for i in range(1,5):
+                if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                    idx = int(self.jinro_score[-i][0])
+                else:
+                    continue
+                break
             return idx
     
     def guard(self):
         if self.game_setting['playerNum'] == 15:
-            # highest prob hm in alive agents
-            p = -1
             idx = 1
-            p0_mat = self.predicter_15.ret_pred()
-            for i in range(1, 16):
-                p0 = p0_mat[i-1, 0]
-                if self.base_info['statusMap'][str(i)] == 'ALIVE' and p0 > p:
-                    p = p0
-                    idx = i
+            for i in range(1,15):
+                if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                    idx = int(self.jinro_score[-i][0])
+                    # print(self.jinro_score[-i][0] + 'に投票')
+                else:
+                    continue
+                break
             return idx
         else:
-            # no need
             return 1
     
     def finish(self):

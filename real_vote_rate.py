@@ -9,11 +9,11 @@ def real_vote_rate(agent,savefile):
     hit_num = 0
 
     # logファイルだいたい１００個くらい
-    for k in range(100):
+    for k in range(500):
         print(str(k)+ 'ファイル目')
 
         try:
-            f = open('./log/'+str(k).zfill(3)+'.log') #ファイル読み込み
+            f = open('../log/'+str(k).zfill(3)+'.log') #ファイル読み込み
         except:
             continue
         lines =f.readlines()# 1行毎にファイル終端まで全て読む(改行文字も含まれる)
@@ -57,7 +57,7 @@ def real_vote_rate(agent,savefile):
 
 
 # 参照エージェント名
-agent = 'WolfKing'
+agent = 'Spicy'
 
 # マルチプロセス処理
 if __name__ == '__main__':
