@@ -41,11 +41,6 @@ class SpicyPlayer(object):
     def __init__(self, agent_name):
         # myname
         self.myname = agent_name
-        
-        # predictor from sample
-        # DataFrame -> P
-        self.predicter_15 = aiwolfpy.spicy.Predictor_15()
-        self.predicter_5 = aiwolfpy.spicy.Predictor_5()
 
         # 勝数、陣営勝数の定義
         self.win_rate = [0 for i in range(15)]
