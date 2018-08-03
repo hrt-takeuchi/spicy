@@ -412,10 +412,10 @@ class SpicyPlayer(object):
                 self.comingout = 'SEER'
                 return cb.comingout(self.id, self.comingout)
             # 黒発見でカミングアウト
-            # elif self.base_info['myRole'] == 'MEDIUM' and self.comingout == '' and self.identifyResult == 1:
-            #     self.not_reported = False
-            #     self.comingout = 'MEDIUM'
-            #     return cb.comingout(self.id, self.comingout), self.myresult
+            elif self.base_info['myRole'] == 'MEDIUM' and self.identifyResult == 1:
+                self.not_reported = False
+                self.comingout = 'MEDIUM'
+                return cb.comingout(self.id, self.comingout), self.myresult
             # 狂った人
             elif self.base_info['myRole'] == 'POSSESSED' and self.comingout == '':
                 if self.rand_rate > 0.15:
