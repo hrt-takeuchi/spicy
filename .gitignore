@@ -5,3 +5,5 @@
 *.txt
 ./*.txt
 ./*/*.txt
+.DS_Store
+
