@@ -24,6 +24,7 @@ def read_record():
             # ファイルから最後の２行を読み込む(自分の役職と結果の把握のため)
             f = input.readlines()[-2:]
             for i, log in enumerate(f):
+                print(log)
                 if i == 0:
                     log_list.append(log[:-1])
                 else:

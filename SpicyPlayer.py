@@ -85,7 +85,7 @@ class SpicyPlayer(object):
             #推定スコアリスト
             self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
             #モデルデータ名
-            model_file = "/aiwolfpy/spicy/data/mymodel0718.h5"
+            model_file = "/aiwolfpy/spicy/data/mymodel0802_5.h5"
 
         # 狼確定リスト
         self.wolfList = []
@@ -359,13 +359,13 @@ class SpicyPlayer(object):
                     self.feature_value[int(diff_data['text'][i][14:16])-1][3] += 1
                     #人狼判定した回数「特徴量6」
                     self.feature_value[int(diff_data['agent'][i])-1][5] += 1
-                if diff_data['type'][i] == 'talk':
-                    if ('ESTIMATE' in diff_data['text'][i] and 'HUMAN' in diff_data['text'][i]) or 'AGREE' in diff_data['text'][i]:
-                        #賛成・信頼回数「特徴量9」
-                        self.feature_value[int(diff_data['agent'][i])-1][8] += 1
-                    if ('ESTIMATE' in diff_data['text'][i] and 'WEREWOLF' in diff_data['text'][i]) or 'DISAGREE' in diff_data['text'][i]:
-                        #反対・不信回数「特徴量10」
-                        self.feature_value[int(diff_data['agent'][i])-1][9] += 1
+            if diff_data['type'][i] == 'talk':
+                if ('ESTIMATE' in diff_data['text'][i] and 'HUMAN' in diff_data['text'][i]) or 'AGREE' in diff_data['text'][i]:
+                    #賛成・信頼回数「特徴量9」
+                    self.feature_value[int(diff_data['agent'][i])-1][8] += 1
+                if ('ESTIMATE' in diff_data['text'][i] and 'WEREWOLF' in diff_data['text'][i]) or 'DISAGREE' in diff_data['text'][i]:
+                    #反対・不信回数「特徴量10」
+                    self.feature_value[int(diff_data['agent'][i])-1][9] += 1
 
             #処刑なら1、襲撃なら2「特徴量8」
             if diff_data['type'][i] == 'execute':
