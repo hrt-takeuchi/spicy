@@ -62,10 +62,11 @@ class SpicyPlayer(object):
         # game_setting
         self.game_setting = game_setting
         self.playerNum = self.game_setting['playerNum']
-        # 人間リスト
-        self.humList = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
+       
         # initialize
         if self.game_setting['playerNum'] == 15:
+             # 人間リスト
+            self.humList = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
             # カミングアウトリスト
             self.comingout_list = [0 for i in range(15)]
             #特徴量
@@ -73,8 +74,10 @@ class SpicyPlayer(object):
             #推定スコアリスト
             self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0}
             #モデルファイル名
-            model_file = "/aiwolfpy/spicy/data/mymodel0803_15.npz"
+            model_file = "/aiwolfpy/spicy/data/mymodel0718.h5"
         elif self.game_setting['playerNum'] == 5:
+             # 人間リスト
+            self.humList = [0,1,2,3,4]
             # カミングアウトリスト
             self.comingout_list = [0 for i in range(5)]
             if len(self.win_rate) == 15:
@@ -86,7 +89,7 @@ class SpicyPlayer(object):
             #推定スコアリスト
             self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
             #モデルデータ名
-            model_file = "/aiwolfpy/spicy/data/mymodel0803_5.npz"
+            model_file = "/aiwolfpy/spicy/data/mymodel0718.h5"
 
         # 狼確定リスト
         self.wolfList = []
@@ -148,7 +151,7 @@ class SpicyPlayer(object):
         self.model = DNN()
         file_path = os.path.dirname(__file__) + model_file
         self.model.to_cpu()
-        serializers.load_npz(file_path, self.model)
+        serializers.load_hdf5(file_path, self.model)
 
         self.jinro_score = []
 
@@ -441,10 +444,6 @@ class SpicyPlayer(object):
                     self.comingout == 'BODYGUARD'
                     return cb.comingout(self.id, self.comingout)
 
-            elif self.comingout == '':
-                self.comingout = 'VILLAGER'
-                return cb.comingout(self.id, self.comingout)
-
             if self.base_info['myRole'] == 'SEER' and self.not_reported:
                 self.not_reported = False
                 return self.myresult
@@ -558,7 +557,7 @@ class SpicyPlayer(object):
                     if self.base_info['myRole'] == "WEREWOLF":
                         id_num = self.werList
                     elif self.base_info['myRole'] == "POSSESSED":
-                        if len(seeList) > 0:
+                        if len(self.seeList) > 0:
                             id_num = self.seeList
             if self.base_info['myRole'] == "HUMAN" or self.base_info['myRole'] == "SEER":
                 if len(self.werList) > 0:
@@ -569,7 +568,7 @@ class SpicyPlayer(object):
                     set_abc = set(a) - set(b)
                     id_num = list(set_abc)
             if len(id_num) != 0:
-                idx = id_num[0]
+                idx = int(id_num[0])
                 return idx
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
@@ -577,7 +576,7 @@ class SpicyPlayer(object):
             if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
                 for i in voteList:
                     if(i != self.id):
-                        idx = i
+                        idx = int(i)
                         return idx
             if self.base_info['myRole'] == "WEREWOLF":
                 idx = 1
@@ -602,7 +601,7 @@ class SpicyPlayer(object):
             if len(self.blackList) > 0:
                 for i in self.blackList:
                     if i in voteList[0:2]:
-                        idx = i
+                        idx = int(i)
                         return idx
 
             if self.base_info['myRole'] == "SEER":
@@ -611,9 +610,9 @@ class SpicyPlayer(object):
                     idx = 0
                     for i in self.wolfList:
                         if i in voteList[0:2]:
-                            idx = i
+                            idx = int(i)
                     if idx == 0:
-                        idx = self.wolfList[0]
+                        idx = int(self.wolfList[0])
                 else: 
                     idx = 1
                     for i in range(1,15):
@@ -629,9 +628,9 @@ class SpicyPlayer(object):
                     idx = 0
                     for i in self.seeList:
                         if i in voteList[0:2]:
-                            idx = i
+                            idx = int(i)
                     if idx == 0:
-                        idx = self.wolfList[0]
+                        idx = int(self.seeList[0])
                 else:
                     for i in range(1,15):
                         if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
@@ -678,16 +677,16 @@ class SpicyPlayer(object):
                 suspision = list(set_abc)
                 ranum = len(suspision) - 1
                 rnd = int(random.uniform(0,ranum))
-                idx = suspision[rnd]
+                idx = int(suspision[rnd])
 
             elif self.base_info['myRole'] == "SEER":
                 if len(self.wolfList) > 0:
                     idx = 0
                     for i in self.wolfList:
                         if i in voteList[0:2]:
-                            idx = i
+                            idx = int(i)
                     if idx == 0:
-                        idx = self.wolfList[0]
+                        idx = int(self.wolfList[0])
 
                 for i in range(1,5):
                     if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):

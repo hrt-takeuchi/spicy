@@ -37,7 +37,7 @@ def real_vote_rate(agent,savefile):
                 ## 自分のid
                 if newLine[5] == agent:
                     selfid = newLine[2]
-                if newLine[5] == agent and newLine[3] == "WEREWOLF":
+                if newLine[5] == agent and (newLine[3] == "WEREWOLF" or newLine[3] == "POSSESSED"):
                     break
 
 
