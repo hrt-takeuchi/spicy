@@ -132,7 +132,9 @@ class SpicyPlayer(object):
         self.aliveList = []
         # 村人陣営用ブラックリスト(黒出ししてきたら黒)
         self.blackList = []
- 
+        # ５人人狼用の占いローラートリガーと黒発見
+        self.divine_torriger = 0
+        self.divine_black = 0
 
         #変更１ model読み込み
         class DNN(Chain):
@@ -191,6 +193,9 @@ class SpicyPlayer(object):
                     black = diff_data['text'][i].split()[1]
                     blackid = int(black.replace('Agent[','').replace(']',''))
                     self.wolfList.append(blackid)
+                    if self.divine_torriger == 1:
+                        self.divine_black == 1
+
 
         # 村人陣営用ブラックリスト(黒出ししてきたら黒)
         if base_info['myRole'] !=  'WEREWOLF' and base_info['myRole'] !=  'POSSESSED':
@@ -369,7 +374,7 @@ class SpicyPlayer(object):
                 self.feature_value[int(diff_data['agent'][i])-1][7]=2
 
 
-        for i in range(1, self.playerNum+1):
+        for i in range(1, self.playerNum):
         #得寮長2「現在の占い師CO数」
             self.feature_value[i-1][1] = len(self.seeList2)
 
@@ -381,7 +386,7 @@ class SpicyPlayer(object):
    
     def dayStart(self):
         #日にち「特徴量1」
-        for i in range(1, self.playerNum+1):
+        for i in range(1, self.playerNum):
             self.feature_value[i-1][0] = self.feature_value[i-1][0] + 1
             #生死「特徴量7」
             if self.base_info['statusMap'][str(i)] == 'ALIVE':
@@ -599,15 +604,7 @@ class SpicyPlayer(object):
             if len(id_num) != 0:
                 idx = int(id_num[0]) + 1
                 return idx
-        # 占い師ローラー
-        if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上で発動
-            idx = 0
-            for i in self.seeList:
-                if i in voteList[0:2]:
-                    idx = int(i)+1
-            if idx == 0:
-                idx = int(self.seeList[0]) + 1
-            return  idx
+
         # 4日目以降は機械学習を信用
         if self.base_info['day'] > 3:
             idx = 0
@@ -621,11 +618,11 @@ class SpicyPlayer(object):
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
             # 投票逃れ(自分のvoteがvote最大数と同じなら※最低2以上)
-            if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
-                for i in voteList:
-                    if(i != self.id):
-                        idx = int(i) + 1
-                        return idx
+            # if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
+            #     for i in voteList:
+            #         if(i != self.id):
+            #             idx = int(i) + 1
+            #             return idx
             if self.base_info['myRole'] == "WEREWOLF":
                 idx = 1
                 for i in range(1,15):
@@ -671,13 +668,23 @@ class SpicyPlayer(object):
                         break
                 return idx
             else:
-                for i in range(1,15):
-                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
-                        idx = int(self.jinro_score[-i][0])
-                    else:
-                        continue
-                    break
-                return idx
+                # 占い師ローラー
+                if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上で発動
+                    idx = 0
+                    for i in self.seeList:
+                        if i in voteList[0:2]:
+                            idx = int(i)+1
+                    if idx == 0:
+                        idx = int(self.seeList[0]) + 1
+                    return  idx
+                else:
+                    for i in range(1,15):
+                        if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                            idx = int(self.jinro_score[-i][0])
+                        else:
+                            continue
+                        break
+                    return idx
            
 
             # else:
@@ -705,6 +712,15 @@ class SpicyPlayer(object):
                     else:
                         continue
                     break
+            # 占い師ローラー
+            if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上で発動
+                idx = 0
+                for i in self.seeList:
+                    if i in voteList[0:2]:
+                        idx = int(i)+1
+                if idx == 0:
+                    idx = int(self.seeList[0]) + 1
+                return  idx
             # 村人側　初日は占いCO,自分以外に投票
             elif len(self.seeList) == 2 and self.base_info['day'] == 1:
                 a = [1,2,3,4,5]
@@ -769,6 +785,13 @@ class SpicyPlayer(object):
         if self.base_info['day'] == 0:
             self.strength = np.argsort(self.win_rate)
             idx = self.strength[0] + 1
+        # CO３人なら
+        elif self.playerNum == 5 and  self.seer_roller == 1 and len(self.seeList) > 1 and self.divine_torriger == 0 and self.divine_black == 0:
+            for i in self.seeList:
+                if i not in self.id:
+                    idx = int(self.seeList[i]) + 1
+            self.divine_torriger = 1
+            return idx
         else:
             idx = 1
             for i in range(1,self.playerNum):
