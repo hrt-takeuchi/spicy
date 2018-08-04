@@ -67,8 +67,6 @@ class SpicyPlayer(object):
         if self.game_setting['playerNum'] == 15:
              # 人間リスト
             self.humList = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
-            # カミングアウトリスト
-            self.comingout_list = [0 for i in range(15)]
             #特徴量
             self.feature_value = np.zeros((15, 11), dtype='float32') #0~14
             #推定スコアリスト
@@ -78,8 +76,6 @@ class SpicyPlayer(object):
         elif self.game_setting['playerNum'] == 5:
              # 人間リスト
             self.humList = [0,1,2,3,4]
-            # カミングアウトリスト
-            self.comingout_list = [0 for i in range(5)]
             if len(self.win_rate) == 15:
                 del self.win_rate[4:14]
                 del self.vila_win_rate[4:14]
@@ -118,9 +114,11 @@ class SpicyPlayer(object):
         self.pp_comingout = 0
 
         # # 各プレイヤーの発言数
-        self.talk_number = [0 for i in range(15)]
+        self.talk_number = [0 for i in range(self.playerNum)]
 
         # カミングアウトリスト 0~14
+        # カミングアウトリスト
+        self.comingout_list = [0 for i in range(self.playerNum)]
         self.seeList = [] #占い師
         self.seeList2 = [] #占い師特徴量用
         self.medList = [] #霊媒師
@@ -555,12 +553,12 @@ class SpicyPlayer(object):
                 return cb.skip()
             elif self.base_info['myRole'] == 'POSSESSED' and self.base_info['day'] == 1:
                 return cb.over()
-            if self.vote_declare != self.vote():
-                self.vote_declare = self.vote()
-                return cb.vote(self.vote_declare)
+            # if self.vote_declare != self.vote():
+                # self.vote_declare = self.vote()
+                # return cb.vote(self.vote_declare)
 
             # 4. skip
-            if self.talk_turn <= 10:
+            if self.talk_turn <= 3:
                 return cb.skip()
 
             return cb.over()
@@ -601,6 +599,17 @@ class SpicyPlayer(object):
             if len(id_num) != 0:
                 idx = int(id_num[0]) + 1
                 return idx
+
+        # 4日目以降は機械学習を信用
+        if self.base_info['day'] > 3:
+            idx = 0
+            for i in range(1,15):
+                if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                    idx = int(self.jinro_score[-i][0])
+                else:
+                    continue
+                break
+            return idx
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
             # 投票逃れ(自分のvoteがvote最大数と同じなら※最低2以上)
@@ -622,7 +631,7 @@ class SpicyPlayer(object):
                 idx = 1
                 for i in range(1,15):
                     if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
-                            idx = int(self.jinro_score[i][0])
+                        idx = int(self.jinro_score[i][0])
                     else:
                         continue
                     break
@@ -687,7 +696,6 @@ class SpicyPlayer(object):
                 for i in range(1,5):
                     if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
                         idx = int(self.jinro_score[i][0])
-                        # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
@@ -695,7 +703,6 @@ class SpicyPlayer(object):
                 for i in range(1,5):
                     if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
                         idx = int(self.jinro_score[i][0])
-                        # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
@@ -708,21 +715,20 @@ class SpicyPlayer(object):
                 suspision = list(set_abc)
                 ranum = len(suspision) - 1
                 rnd = int(random.uniform(0,ranum))
-                idx = int(suspision[rnd])
+                idx = int(suspision[rnd]) + 1
 
             elif self.base_info['myRole'] == "SEER":
                 if len(self.wolfList) > 0:
                     idx = 0
                     for i in self.wolfList:
                         if i in voteList[0:2]:
-                            idx = int(i)
+                            idx = int(i) + 1
                     if idx == 0:
-                        idx = int(self.wolfList[0])
-
+                        idx = int(self.wolfList[0]) + 1
+ 
                 for i in range(1,5):
                     if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                         idx = int(self.jinro_score[-i][0])
-                        # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
@@ -730,7 +736,6 @@ class SpicyPlayer(object):
                 for i in range(1,5):
                     if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                         idx = int(self.jinro_score[-i][0])
-                        # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
@@ -745,7 +750,6 @@ class SpicyPlayer(object):
                 return idx
 
             # 強いやつから噛む
-            ## vila_win_rateの勝ち数多い順の並び替え
             vilaWinList = np.argsort(self.vila_win_rate)[::-1] + 1
             for i in vilaWinList:
                 if self.base_info['statusMap'][str(i)] == 'ALIVE':
@@ -756,7 +760,6 @@ class SpicyPlayer(object):
             for i in range(1,5):
                 if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
                     idx = int(self.jinro_score[i][0])
-                    # print(self.jinro_score[-i][0] + 'に投票')
                 else:
                     continue
                 break
@@ -793,7 +796,6 @@ class SpicyPlayer(object):
             for i in range(1,15):
                 if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                     idx = int(self.jinro_score[-i][0])
-                    # print(self.jinro_score[-i][0] + 'に投票')
                 else:
                     continue
                 break

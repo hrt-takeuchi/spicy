@@ -8,7 +8,7 @@ def real_vote_rate(agent,savefile):
     vote_num = 0
     hit_num = 0
 
-    # logファイルだいたい１００個くらい
+    # logファイルだいたい100個くらい
     for k in range(500):
         print(str(k)+ 'ファイル目')
 
@@ -57,7 +57,7 @@ def real_vote_rate(agent,savefile):
 
 
 # 参照エージェント名
-agent = 'Spicy'
+agent = 'voteSample'
 
 # マルチプロセス処理
 if __name__ == '__main__':
