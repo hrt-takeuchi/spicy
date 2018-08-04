@@ -122,6 +122,7 @@ class SpicyPlayer(object):
 
         # カミングアウトリスト 0~14
         self.seeList = [] #占い師
+        self.seeList2 = [] #占い師特徴量用
         self.medList = [] #霊媒師
         self.posList = [] #狂人
         self.werList = [] #人狼
@@ -247,29 +248,54 @@ class SpicyPlayer(object):
         for i in range(diff_data.shape[0]):
             coid = int(diff_data['agent'][i]) - 1
             if diff_data['text'][i].split()[0]== 'COMINGOUT':
-                if diff_data['text'][i].split()[2] == 'SEER':
+                if diff_data['text'][i].split()[2] == 'SEER' and coid not in self.seeList:
                     self.comingout_list[coid] = 1
                     self.seeList.append(coid)
+                    self.seeList2.append(coid)
                     if coid in self.humList:
                         self.humList.remove(coid)
+                    if coid in self.medList:
+                        self.medList.remove(coid)
+                    if coid in self.posList:
+                        self.posList.remove(coid)
+                    if coid in self.werList:
+                        self.werList.remove(coid)
                     # ついでに自分が占い師ならブラックリスト登録
                     if self.base_info['myRole'] == 'SEER' and  self.id != coid:
                         self.seerBlackList.append(coid+1)
-                elif (diff_data['text'][i].split()[2] == 'MEDIUM'):
+                elif diff_data['text'][i].split()[2] == 'MEDIUM' and coid not in self.medList:
                     self.comingout_list[coid] = 2
                     self.medList.append(coid)
                     if coid in self.humList:
                         self.humList.remove(coid)
-                elif (diff_data['text'][i].split()[2] == 'POSSESSED'):
+                    if coid in self.seeList:
+                        self.seeList.remove(coid)
+                    if coid in self.posList:
+                        self.posList.remove(coid)
+                    if coid in self.werList:
+                        self.werList.remove(coid)
+                elif diff_data['text'][i].split()[2] == 'POSSESSED' and coid not in self.posList:
                     self.comingout_list[coid] = 3
                     self.posList.append(coid)
                     if coid in self.humList:
                         self.humList.remove(coid)
-                elif (diff_data['text'][i].split()[2] == 'WEREWOLF'):
+                    if coid in self.seeList:
+                        self.seeList.remove(coid)
+                    if coid in self.medList:
+                        self.medList.remove(coid)
+                    if coid in self.werList:
+                        self.werList.remove(coid)
+                elif diff_data['text'][i].split()[2] == 'WEREWOLF' and coid not in self.werList:
                     self.comingout_list[coid] = 4
                     self.werList.append(coid)
                     if coid in self.humList:
                         self.humList.remove(coid)
+                    if coid in self.seeList:
+                        self.seeList.remove(coid)
+                    if coid in self.medList:
+                        self.medList.remove(coid)
+                    if coid in self.posList:
+                        self.posList.remove(coid)
  
         # ローラー発動条件
         if len(self.seeList) == 3:
@@ -331,18 +357,23 @@ class SpicyPlayer(object):
                     #人狼判定した回数「特徴量6」
                     self.feature_value[int(diff_data['agent'][i])-1][5] += 1
                 if diff_data['type'][i] == 'talk':
-                    if 'ESTIMATE' in diff_data['text'][i]  and 'HUMAN' in diff_data['text'][i] or 'AGREE' in diff_data['text'][i]:
-                        #賛成・信頼回数「特徴量8」
+                    if ('ESTIMATE' in diff_data['text'][i] and 'HUMAN' in diff_data['text'][i]) or 'AGREE' in diff_data['text'][i]:
+                        #賛成・信頼回数「特徴量9」
                         self.feature_value[int(diff_data['agent'][i])-1][8] += 1
-                    if 'ESTIMATE' in diff_data['text'][i] and 'WEREWOLF' in diff_data['text'][i] or 'DISAGREE' in diff_data['text'][i]:
-                        #反対・不信回数「特徴量」
+                    if ('ESTIMATE' in diff_data['text'][i] and 'WEREWOLF' in diff_data['text'][i]) or 'DISAGREE' in diff_data['text'][i]:
+                        #反対・不信回数「特徴量10」
                         self.feature_value[int(diff_data['agent'][i])-1][9] += 1
 
-            #処刑なら1、襲撃なら2「特徴量7」
+            #処刑なら1、襲撃なら2「特徴量8」
             if diff_data['type'][i] == 'execute':
                 self.feature_value[int(diff_data['agent'][i])-1][7]=1
             elif diff_data['type'][i] == 'dead':
                 self.feature_value[int(diff_data['agent'][i])-1][7]=2
+
+
+        for i in range(1, self.playerNum+1):
+        #得寮長2「現在の占い師CO数」
+            self.feature_value[i-1][1] = len(self.seeList2)
 
         #推定スコア・更新
         y = self.model.forward(self.feature_value)
@@ -354,7 +385,7 @@ class SpicyPlayer(object):
         #日にち「特徴量1」
         for i in range(1, self.playerNum+1):
             self.feature_value[i-1][0] = self.feature_value[i-1][0] + 1
-            #生死「特徴量2」
+            #生死「特徴量7」
             if self.base_info['statusMap'][str(i)] == 'ALIVE':
                 self.feature_value[i-1][6] = 1
             elif self.base_info['statusMap'][str(i)] == 'DEAD':
@@ -568,7 +599,7 @@ class SpicyPlayer(object):
                     set_abc = set(a) - set(b)
                     id_num = list(set_abc)
             if len(id_num) != 0:
-                idx = int(id_num[0])
+                idx = int(id_num[0]) + 1
                 return idx
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
@@ -576,7 +607,7 @@ class SpicyPlayer(object):
             if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
                 for i in voteList:
                     if(i != self.id):
-                        idx = int(i)
+                        idx = int(i) + 1
                         return idx
             if self.base_info['myRole'] == "WEREWOLF":
                 idx = 1
@@ -601,7 +632,7 @@ class SpicyPlayer(object):
             if len(self.blackList) > 0:
                 for i in self.blackList:
                     if i in voteList[0:2]:
-                        idx = int(i)
+                        idx = int(i) + 1
                         return idx
 
             if self.base_info['myRole'] == "SEER":
@@ -610,7 +641,7 @@ class SpicyPlayer(object):
                     idx = 0
                     for i in self.wolfList:
                         if i in voteList[0:2]:
-                            idx = int(i)
+                            idx = int(i) + 1
                     if idx == 0:
                         idx = int(self.wolfList[0])
                 else: 
@@ -628,9 +659,9 @@ class SpicyPlayer(object):
                     idx = 0
                     for i in self.seeList:
                         if i in voteList[0:2]:
-                            idx = int(i)
+                            idx = int(i)+1
                     if idx == 0:
-                        idx = int(self.seeList[0])
+                        idx = int(self.seeList[0]) + 1
                 else:
                     for i in range(1,15):
                         if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
