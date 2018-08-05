@@ -374,19 +374,19 @@ class SpicyPlayer(object):
                 self.feature_value[int(diff_data['agent'][i])-1][7]=2
 
 
-        for i in range(1, self.playerNum):
+        for i in range(1, (self.playerNum + 1)):
         #得寮長2「現在の占い師CO数」
             self.feature_value[i-1][1] = len(self.seeList2)
 
         #推定スコア・更新
         y = self.model.forward(self.feature_value)
-        for i in range(0, self.playerNum):
+        for i in range(0, (self.playerNum + 1)):
             self.estimate_score[str(i+1)] = float(str(y[i][1] - y[i][0]).replace("variable(","").replace(")",""))
         self.jinro_score = sorted(self.estimate_score.items(), key=lambda x: x[1])
    
     def dayStart(self):
         #日にち「特徴量1」
-        for i in range(1, self.playerNum):
+        for i in range(1, (self.playerNum + 1)):
             self.feature_value[i-1][0] = self.feature_value[i-1][0] + 1
             #生死「特徴量7」
             if self.base_info['statusMap'][str(i)] == 'ALIVE':
@@ -794,7 +794,7 @@ class SpicyPlayer(object):
             return idx
         else:
             idx = 1
-            for i in range(1,self.playerNum):
+            for i in range(1, (self.playerNum + 1)):
                 if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                     idx = int(self.jinro_score[-i][0])
                 else:
