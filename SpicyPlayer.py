@@ -72,7 +72,7 @@ class SpicyPlayer(object):
             #推定スコアリスト
             self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0}
             #モデルファイル名
-            model_file = "/aiwolfpy/spicy/data/mymodel0718.h5"
+            model_file = "/aiwolfpy/spicy/data/mymodel0803_15.npz"
         elif self.game_setting['playerNum'] == 5:
              # 人間リスト
             self.humList = [0,1,2,3,4]
@@ -85,7 +85,7 @@ class SpicyPlayer(object):
             #推定スコアリスト
             self.estimate_score = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
             #モデルデータ名
-            model_file = "/aiwolfpy/spicy/data/mymodel0802_5.h5"
+            model_file = "/aiwolfpy/spicy/data/mymodel0803_5.npz"
 
         # 狼確定リスト
         self.wolfList = []
@@ -152,7 +152,7 @@ class SpicyPlayer(object):
         self.model = DNN()
         file_path = os.path.dirname(__file__) + model_file
         self.model.to_cpu()
-        serializers.load_hdf5(file_path, self.model)
+        serializers.load_npz(file_path, self.model)
 
         self.jinro_score = []
 
@@ -788,8 +788,8 @@ class SpicyPlayer(object):
         # CO３人なら
         elif self.playerNum == 5 and  self.seer_roller == 1 and len(self.seeList) > 1 and self.divine_torriger == 0 and self.divine_black == 0:
             for i in self.seeList:
-                if i not in self.id:
-                    idx = int(self.seeList[i]) + 1
+                if i != self.id:
+                    idx = int(i) + 1
             self.divine_torriger = 1
             return idx
         else:

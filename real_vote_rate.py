@@ -49,7 +49,10 @@ def real_vote_rate(agent,savefile):
                 if vote in wolf_list:
                     hit_num += 1
         print(wolf_list)
-    hitracio = (hit_num / vote_num )* 100
+    if hit_num != 0 and vote_num != 0:
+        hitracio = (hit_num / vote_num )* 100
+    else:
+        hitracio = 0
     text = '総投票数は' + str(vote_num) + '回' + '\n' + '正解数は' + str(hit_num) + '回' + '\n' + '投票正解率は' + str('{:.1f}'.format(hitracio)) + '%' + '\n' 
     file = open(savefile, 'a')    #追加書き込みモードでオープン
     file.writelines(text)
@@ -57,7 +60,7 @@ def real_vote_rate(agent,savefile):
 
 
 # 参照エージェント名
-agent = 'voteSample'
+agent = 'Aves'
 
 # マルチプロセス処理
 if __name__ == '__main__':
