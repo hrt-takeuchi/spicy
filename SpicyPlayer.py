@@ -675,7 +675,7 @@ class SpicyPlayer(object):
                 return idx
             else:
                 # 占い師ローラー
-                if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上で発動
+                if self.seer_roller == 1 and (len(self.seeList) > 1 or (len(self.seeList) == 1 and (self.seeList[0]+1) != self.id)): #占い師ＣＯ者が3人以上で発動
                     idx = 0
                     for i in self.seeList:
                         if (int(i) + 1) in voteList[0:2]:
@@ -719,7 +719,7 @@ class SpicyPlayer(object):
                         continue
                     break
             # 占い師ローラー
-            if self.seer_roller == 1 and len(self.seeList) > 0: #占い師ＣＯ者が3人以上で発動
+            if self.seer_roller == 1 and (len(self.seeList) > 1 or (len(self.seeList) == 1 and (self.seeList[0]+1) != self.id)): #占い師ＣＯ者が3人以上で発動
                 idx = 0
                 for i in self.seeList:
                     if (int(i) + 1) in voteList[0:2]:
