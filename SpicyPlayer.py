@@ -490,11 +490,15 @@ class SpicyPlayer(object):
                 for i in range(1,16):
                     if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                         idx = int(self.jinro_score[-i][0])
+                        self.divined_list.append(idx)
                         # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
-                self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
+                if (self.base_info['day'] == 3 or self.base_info['day'] == 4 ) and self.rand_rate < 0.4:
+                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
+                    else:
+                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
             
             if self.vote_declare != self.vote():
@@ -544,11 +548,15 @@ class SpicyPlayer(object):
                 for i in range(1,6):
                     if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
                         idx = int(self.jinro_score[-i][0])
+                        self.divined_list.append(idx)
                         # print(self.jinro_score[-i][0] + 'に投票')
                     else:
                         continue
                     break
-                self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
+                if self.base_info['day'] == 1 and self.rand_rate < 0.5:
+                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
+                    else:
+                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
 
 
@@ -556,14 +564,14 @@ class SpicyPlayer(object):
             # 3.declare vote if not yet
             if self.base_info['myRole'] != 'SEER' and self.talk_turn < 3:
                 return cb.skip()
-            elif self.base_info['myRole'] == 'POSSESSED' and self.base_info['day'] == 1:
-                return cb.over()
+            # elif self.base_info['myRole'] == 'POSSESSED' and self.base_info['day'] == 1:
+            #     return cb.over()
             # if self.vote_declare != self.vote():
                 # self.vote_declare = self.vote()
                 # return cb.vote(self.vote_declare)
 
             # 4. skip
-            if self.talk_turn <= 3:
+            if self.talk_turn <= 4:
                 return cb.skip()
 
             return cb.over()
@@ -791,7 +799,6 @@ class SpicyPlayer(object):
                 if (int(i) + 1) != self.id:
                     idx = int(i) + 1
                     self.divine_torriger = 1
-            return idx
         else:
             idx = 1
             for i in range(1, (self.playerNum + 1)):
@@ -800,6 +807,7 @@ class SpicyPlayer(object):
                 else:
                     continue
                 break
+        self.divined_list.append(idx)
         return idx
         
     
