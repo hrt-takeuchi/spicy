@@ -380,7 +380,7 @@ class SpicyPlayer(object):
 
         #推定スコア・更新
         y = self.model.forward(self.feature_value)
-        for i in range(0, (self.playerNum + 1)):
+        for i in range(0, self.playerNum):
             self.estimate_score[str(i+1)] = float(str(y[i][1] - y[i][0]).replace("variable(","").replace(")",""))
         self.jinro_score = sorted(self.estimate_score.items(), key=lambda x: x[1])
    
@@ -488,17 +488,16 @@ class SpicyPlayer(object):
                 self.not_reported = False
                 idx = 1
                 for i in range(1,16):
-                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
-                        idx = int(self.jinro_score[-i][0])
-                        self.divined_list.append(idx)
-                        # print(self.jinro_score[-i][0] + 'に投票')
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id) and self.jinro_score[i][0] not in self.divined_list: 
+                        idx = int(self.jinro_score[i][0])
                     else:
                         continue
                     break
+                self.divined_list.append(idx)
                 if (self.base_info['day'] == 3 or self.base_info['day'] == 4 ) and self.rand_rate < 0.4:
-                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
-                    else:
-                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
+                    self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
+                else:
+                    self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
             
             if self.vote_declare != self.vote():
@@ -546,17 +545,16 @@ class SpicyPlayer(object):
                 self.not_reported = False
                 idx = 1
                 for i in range(1,6):
-                    if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
-                        idx = int(self.jinro_score[-i][0])
-                        self.divined_list.append(idx)
-                        # print(self.jinro_score[-i][0] + 'に投票')
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id) and self.jinro_score[i][0] not in self.divined_list: 
+                        idx = int(self.jinro_score[i][0])
                     else:
                         continue
                     break
+                self.divined_list.append(idx)
                 if self.base_info['day'] == 1 and self.rand_rate < 0.5:
-                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
-                    else:
-                        self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
+                    self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'WEREWOLF'
+                else:
+                    self.myresult = 'DIVINED Agent[' + "{0:02d}".format(idx) + '] ' + 'HUMAN'
                 return self.myresult
 
 
@@ -625,7 +623,7 @@ class SpicyPlayer(object):
             return idx
         ## 15人人狼
         if self.game_setting['playerNum'] == 15:
-            投票逃れ(自分のvoteがvote最大数と同じなら※最低2以上)
+            # 投票逃れ(自分のvoteがvote最大数と同じなら※最低2以上)
             if np.max(self.vote_list) == self.vote_list[self.id-1] and self.vote_list[self.id-1] > 1:
                 for i in voteList:
                     if (int(i) + 1) != self.id:
@@ -643,7 +641,7 @@ class SpicyPlayer(object):
             elif self.base_info['myRole'] == "POSSESSED":
                 idx = 1
                 for i in range(1,16):
-                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id):
+                    if self.base_info['statusMap'][self.jinro_score[i][0]] == 'ALIVE' and self.jinro_score[i][0] != str(self.id): 
                         idx = int(self.jinro_score[i][0])
                     else:
                         continue
@@ -796,13 +794,13 @@ class SpicyPlayer(object):
         # CO３人なら
         elif self.playerNum == 5 and  self.seer_roller == 1 and len(self.seeList) > 1 and self.divine_torriger == 0 and self.divine_black == 0:
             for i in self.seeList:
-                if (int(i) + 1) != self.id:
+                if (int(i) + 1) != self.id and (int(i) not in self.divined_list):
                     idx = int(i) + 1
                     self.divine_torriger = 1
         else:
             idx = 1
             for i in range(1, (self.playerNum + 1)):
-                if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id):
+                if self.base_info['statusMap'][self.jinro_score[-i][0]] == 'ALIVE' and self.jinro_score[-i][0] != str(self.id) and int(self.jinro_score[-i][0]) not in self.divined_list:
                     idx = int(self.jinro_score[-i][0])
                 else:
                     continue
